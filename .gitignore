@@ -1,0 +1,47 @@
+# ========================
+# 1. 过滤 Python 后端环境与杂项
+# ========================
+# 虚拟环境 (对应图中 venv 文件夹)
+venv/
+env/
+.env
+
+# Python 编译产生的缓存文件 (虽然图中未显示，但运行后一定会产生)
+__pycache__/
+*.pyc
+*.pyo
+
+# 本地数据库 (对应图中 backend/db.sqlite3)
+# 也就是只同步代码，不同步本地测试数据
+# *.sqlite3
+# backend/db.sqlite3
+
+# ========================
+# 2. 过滤 Frontend 前端环境与构建
+# ========================
+# Node 依赖包 (对应图中 frontend/node_modules，这是体积最大的部分)
+frontend/node_modules/
+node_modules/
+
+# 环境变量文件 (对应图中 frontend/.env.development 等)
+# 这些通常包含本地配置，不同电脑可能不一样，建议忽略
+.env.*
+!.env.example
+
+# 前端打包后的输出目录 (如果你运行过 npm run build)
+frontend/dist/
+dist/
+
+# ========================
+# 3. 过滤工具配置与系统文件
+# ========================
+# Claude 工具生成的配置/缓存 (对应图中 .claude)
+.claude/
+
+# Mac/Windows 系统生成的缩略图文件
+.DS_Store
+Thumbs.db
+
+# IDE 配置文件 (可选，如果你不想上传 VSCode/Pycharm 配置)
+.vscode/
+.idea/
