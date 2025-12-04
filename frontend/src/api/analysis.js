@@ -1,27 +1,40 @@
 import request from './request'
 
 // 获取能力雷达图数据
-export function getRadarData() {
+export function getRadarData(userId = null) {
+  const params = userId ? { user_id: userId } : {}
   return request({
     url: '/radar/',
-    method: 'get'
+    method: 'get',
+    params
   })
 }
 
 // 获取用户能力总结
-export function getCapabilitySummary() {
+export function getCapabilitySummary(userId = null) {
+  const params = userId ? { user_id: userId } : {}
   return request({
     url: '/summary/',
-    method: 'get'
+    method: 'get',
+    params
   })
 }
 
 // 获取能力趋势数据
-export function getTrendData(days = 30) {
+export function getTrendData(days = 30, userId = null) {
+  const params = userId ? { days, user_id: userId } : { days }
   return request({
     url: '/trend/',
     method: 'get',
-    params: { days }
+    params
+  })
+}
+
+// 获取用户列表（管理员专用）
+export function getUserList() {
+  return request({
+    url: '/users/',
+    method: 'get'
   })
 }
 

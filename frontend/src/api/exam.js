@@ -42,3 +42,19 @@ export function submitExam(id, data) {
     data
   })
 }
+
+// 删除试卷（管理员专用）
+export function deleteExam(id) {
+  return request({
+    url: `/exam/${id}/delete/`,
+    method: 'delete'
+  })
+}
+
+// 获取考试统计数据（管理员专用）
+export function getExamStats() {
+  return request({
+    url: '/exam/stats/',
+    method: 'get'
+  })
+}

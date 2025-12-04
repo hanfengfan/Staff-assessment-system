@@ -114,17 +114,24 @@ class ExamGenerationService:
     def _select_questions_by_strategy(self, candidate_questions, weak_tags, strategy_counts):
         """按策略选择题目"""
         selected_questions = []
+        total_needed = sum(strategy_counts.values())
+
+        print(f"候选题目数量: {candidate_questions.count()}")
+        print(f"弱项标签: {weak_tags}")
+        print(f"策略分配: {strategy_counts}")
 
         # 1. 弱项强化题目
         if weak_tags and strategy_counts['weak'] > 0:
             weak_questions = candidate_questions.filter(
                 tags__in=weak_tags
             ).distinct()
+            print(f"弱项题目数量: {weak_questions.count()}")
 
             weak_selected = self._random_select_questions(
                 weak_questions, strategy_counts['weak']
             )
             selected_questions.extend(weak_selected)
+            print(f"选择的弱项题目: {[q.id for q in weak_selected]}")
 
         # 2. 基础巩固题目
         if strategy_counts['random'] > 0:
@@ -132,11 +139,13 @@ class ExamGenerationService:
             remaining_questions = candidate_questions.exclude(
                 id__in=[q.id for q in selected_questions]
             )
+            print(f"剩余题目数量: {remaining_questions.count()}")
 
             random_selected = self._random_select_questions(
                 remaining_questions, strategy_counts['random']
             )
             selected_questions.extend(random_selected)
+            print(f"选择的随机题目: {[q.id for q in random_selected]}")
 
         # 3. 新题探索题目（如果还有剩余名额）
         if strategy_counts['new'] > 0:
@@ -144,11 +153,43 @@ class ExamGenerationService:
             remaining_questions = candidate_questions.exclude(
                 id__in=[q.id for q in selected_questions]
             )
+            print(f"新题剩余题目数量: {remaining_questions.count()}")
 
             new_selected = self._random_select_questions(
                 remaining_questions, strategy_counts['new']
             )
             selected_questions.extend(new_selected)
+            print(f"选择的新题: {[q.id for q in new_selected]}")
+
+        # 4. 容错机制：如果选择的题目不够，从剩余题目中补充
+        if len(selected_questions) < total_needed:
+            remaining_count = total_needed - len(selected_questions)
+            remaining_questions = candidate_questions.exclude(
+                id__in=[q.id for q in selected_questions]
+            )
+            print(f"需要补充{remaining_count}道题目，剩余可用题目: {remaining_questions.count()}")
+
+            if remaining_questions.count() > 0:
+                backup_questions = self._random_select_questions(
+                    remaining_questions, remaining_count
+                )
+                selected_questions.extend(backup_questions)
+                print(f"补充的题目: {[q.id for q in backup_questions]}")
+
+        # 5. 极端情况：如果没有任何题目，放宽限制
+        if len(selected_questions) == 0:
+            print("极端情况：放宽所有限制，获取所有可用题目")
+            all_questions = Question.objects.filter(is_active=True)
+            if all_questions.count() > 0:
+                min_count = min(total_needed, all_questions.count())
+                emergency_questions = self._random_select_questions(
+                    all_questions, min_count
+                )
+                selected_questions.extend(emergency_questions)
+                print(f"紧急选择的题目: {[q.id for q in emergency_questions]}")
+
+        print(f"最终选择的题目总数: {len(selected_questions)}")
+        print(f"最终选择的题目ID: {[q.id for q in selected_questions]}")
 
         # 打乱题目顺序
         random.shuffle(selected_questions)

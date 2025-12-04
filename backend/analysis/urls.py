@@ -11,6 +11,9 @@ urlpatterns = [
     path('trend/', views.trend_data, name='trend-data'),
     path('recommendations/', views.weak_tag_recommendations, name='weak-recommendations'),
 
+    # 用户管理相关（管理员专用）
+    path('users/', views.user_list, name='user-list'),
+
     # 培训资料相关
     path('materials/', views.TrainingMaterialListView.as_view(), name='training-materials'),
     path('materials/create/', views.create_training_material, name='create-training-material'),

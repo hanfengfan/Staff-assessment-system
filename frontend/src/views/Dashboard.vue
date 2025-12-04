@@ -15,6 +15,29 @@
       </div>
     </div>
 
+    <!-- 管理员用户选择器 -->
+    <div class="user-selector" v-if="isAdmin && userList.length > 0">
+      <el-card>
+        <template #header>
+          <el-icon><UserFilled /></el-icon>
+          <span>选择用户</span>
+        </template>
+        <el-select
+          v-model="selectedUserId"
+          placeholder="选择要查看的用户"
+          @change="handleUserChange"
+          style="width: 100%"
+        >
+          <el-option
+            v-for="userItem in userList"
+            :key="userItem.id"
+            :label="`${userItem.job_number} - ${userItem.username}`"
+            :value="userItem.id"
+          />
+        </el-select>
+      </el-card>
+    </div>
+
     <!-- 统计卡片 -->
     <div class="stats-cards">
       <div class="stat-card">
@@ -23,7 +46,9 @@
         </el-icon>
         <div class="stat-content">
           <div class="stat-value">{{ capabilitySummary?.overall_score || 0 }}</div>
-          <div class="stat-label">综合能力评分</div>
+          <div class="stat-label">
+            {{ selectedUserId ? '用户综合能力评分' : '综合能力评分' }}
+          </div>
         </div>
       </div>
 
@@ -127,6 +152,27 @@
           </div>
         </el-card>
 
+        <!-- 管理员入口 -->
+        <el-card class="admin-card" v-if="isAdmin">
+          <template #header>
+            <div class="card-header">
+              <el-icon><Setting /></el-icon>
+              <span>管理员功能</span>
+            </div>
+          </template>
+          <div class="admin-actions">
+            <el-button
+              type="primary"
+              size="large"
+              @click="goToAdminDashboard"
+              class="admin-btn"
+            >
+              <el-icon><Tools /></el-icon>
+              进入管理员控制台
+            </el-button>
+          </div>
+        </el-card>
+
         <!-- 最近考试记录 -->
         <el-card class="custom-card">
           <template #header>
@@ -169,7 +215,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, computed, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -181,11 +227,14 @@ import {
   Bell,
   Clock,
   Trophy,
-  Warning
+  Warning,
+  Setting,
+  Tools
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
-import { getExamList } from '@/api/exam'
-import { getRadarData, getCapabilitySummary, getRecommendations } from '@/api/analysis'
+import { getExamList, generateExam } from '@/api/exam'
+import { getRadarData, getCapabilitySummary, getRecommendations, getUserList } from '@/api/analysis'
+import { getUserInfo } from '@/api/auth'
 import * as echarts from 'echarts'
 
 const router = useRouter()
@@ -198,28 +247,85 @@ const radarChartRef = ref()
 const radarChart = ref(null)
 
 const user = computed(() => authStore.user)
+const isAdmin = computed(() => authStore.isAdmin)
 const recentExams = ref([])
 const radarData = ref([])
 const capabilitySummary = ref(null)
 const recommendations = ref([])
+const userList = ref([])
+const selectedUserId = ref(null)
+
+// 用户选择处理函数
+const handleUserChange = (userId) => {
+  selectedUserId.value = userId
+  fetchUserData(userId)
+}
+
+// 获取指定用户数据
+const fetchUserData = async (userId = null) => {
+  loading.value = true
+  try {
+    const [radarResponse, summaryResponse, recommendationsResponse] = await Promise.all([
+      getRadarData(userId),
+      getCapabilitySummary(userId),
+      getRecommendations()
+    ])
+
+    radarData.value = Array.isArray(radarResponse) ? radarResponse : []
+    capabilitySummary.value = summaryResponse || {}
+    recommendations.value = Array.isArray(recommendationsResponse?.recommendations) ? recommendationsResponse.recommendations : []
+
+    // 渲染雷达图
+    nextTick(() => {
+      renderRadarChart()
+    })
+  } catch (error) {
+    console.error('获取用户数据失败:', error)
+    ElMessage.error('获取数据失败，请稍后重试')
+
+    radarData.value = []
+    capabilitySummary.value = {}
+    recommendations.value = []
+  } finally {
+    loading.value = false
+  }
+}
 
 // 获取数据
 const fetchDashboardData = async () => {
   loading.value = true
 
   try {
-    const [examsResponse, radarResponse, summaryResponse, recommendationsResponse] = await Promise.all([
-      getExamList({ page_size: 5 }),
-      getRadarData(),
-      getCapabilitySummary(),
+    // 根据用户身份获取不同数据
+    const promises = [
+      getExamList({ page_size: 5, user_id: selectedUserId.value }),
+      getRadarData(selectedUserId.value),
+      getCapabilitySummary(selectedUserId.value),
       getRecommendations()
-    ])
+    ]
+
+    // 只有管理员才获取用户列表
+    if (isAdmin.value) {
+      promises.push(getUserList().catch(error => {
+        console.warn('获取用户列表失败:', error)
+        return []
+      }))
+    } else {
+      promises.push(Promise.resolve([]))
+    }
+
+    const [examsResponse, radarResponse, summaryResponse, recommendationsResponse, usersResponse] = await Promise.all(promises)
 
     // 确保数据结构正确，防止 undefined 错误
     recentExams.value = Array.isArray(examsResponse?.results) ? examsResponse.results : []
     radarData.value = Array.isArray(radarResponse) ? radarResponse : []
     capabilitySummary.value = summaryResponse || {}
     recommendations.value = Array.isArray(recommendationsResponse?.recommendations) ? recommendationsResponse.recommendations : []
+
+    // 管理员设置用户列表
+    if (isAdmin && usersResponse) {
+      userList.value = Array.isArray(usersResponse) ? usersResponse : []
+    }
 
     // 渲染雷达图
     nextTick(() => {
@@ -309,17 +415,27 @@ const handleGenerateExam = async () => {
 
     generatingExam.value = true
 
-    // 这里应该调用生成考试API，现在先跳转
-    ElMessage.success('正在生成智能试卷...')
+    // 调用生成考试API
+    const response = await generateExam({
+      reason: 'daily_practice',
+      question_count: 15
+    })
 
-    // 模拟延迟
-    setTimeout(() => {
-      router.push('/exam/generate')
-      generatingExam.value = false
-    }, 1500)
+    if (response.id) {
+      ElMessage.success('试卷生成成功！正在跳转到考试页面...')
+
+      // 生成成功后跳转到考试页面
+      setTimeout(() => {
+        router.push(`/exam/${response.id}`)
+        generatingExam.value = false
+      }, 1000)
+    } else {
+      throw new Error('生成试卷失败')
+    }
 
   } catch (error) {
-    // 用户取消了操作
+    console.error('生成考试失败:', error)
+    ElMessage.error(error.response?.data?.error || '生成试卷失败，请稍后重试')
     generatingExam.value = false
   }
 }
@@ -350,6 +466,11 @@ const handleViewExamResult = (examId) => {
   if (examId) {
     router.push(`/result/${examId}`)
   }
+}
+
+// 进入管理员控制台
+const goToAdminDashboard = async () => {
+  router.push('/admin')
 }
 
 // 工具函数
@@ -385,7 +506,9 @@ const formatDate = (dateStr) => {
 }
 
 // 生命周期
-onMounted(() => {
+onMounted(async () => {
+  // 确保用户信息是最新的
+  await authStore.checkAuth()
   fetchDashboardData()
 })
 
@@ -472,6 +595,11 @@ onUnmounted(() => {
 .stat-label {
   color: #909399;
   font-size: 14px;
+}
+
+.user-selector {
+  grid-column: span 2;
+  margin-bottom: 24px;
 }
 
 .dashboard-content {

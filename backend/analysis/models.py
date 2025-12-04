@@ -60,7 +60,15 @@ class TrainingMaterial(BaseTimestampedModel):
         verbose_name='关联标签',
         blank=True
     )
+    creator = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='created_materials',
+        verbose_name='创建者',
+        default=1  # 默认设置为管理员用户
+    )
     is_active = models.BooleanField(default=True, verbose_name='是否启用')
+    is_public = models.BooleanField(default=True, verbose_name='是否公开')
 
     class Meta:
         verbose_name = '培训资料'

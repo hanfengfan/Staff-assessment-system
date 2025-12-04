@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, toRaw } from 'vue'
 import { login, logout, getUserInfo } from '@/api/auth'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -7,13 +7,18 @@ export const useAuthStore = defineStore('auth', () => {
   const token = ref(localStorage.getItem('token') || '')
   const user = ref(null)
   const isLoggedIn = computed(() => !!token.value)
+  const isAdmin = computed(() => {
+    if (!user.value) return false
+    return Boolean(user.value.is_staff)
+  })
 
   // 初始化用户信息（在store创建时立即执行）
   function initUser() {
     const savedUser = localStorage.getItem('user')
     if (savedUser) {
       try {
-        user.value = JSON.parse(savedUser)
+        const parsedUser = JSON.parse(savedUser)
+        user.value = parsedUser
       } catch (error) {
         console.error('解析用户信息失败:', error)
         localStorage.removeItem('user')
@@ -34,6 +39,7 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.setItem('user', JSON.stringify(response))
         return true
       } catch (error) {
+        console.error('checkAuth 失败:', error)
         // token失效，清除状态
         clearAuth()
         return false
@@ -55,9 +61,29 @@ export const useAuthStore = defineStore('auth', () => {
 
       return { success: true }
     } catch (error) {
-      return {
-        success: false,
-        error: error.response?.data?.error || '登录失败'
+      // 优先显示后端返回的具体错误信息
+      if (error.response?.data?.non_field_errors) {
+        // Django REST Framework 通常使用 non_field_errors
+        return {
+          success: false,
+          error: error.response.data.non_field_errors[0]
+        }
+      } else if (error.response?.data?.error) {
+        return {
+          success: false,
+          error: error.response.data.error
+        }
+      } else if (error.response?.data?.detail) {
+        return {
+          success: false,
+          error: error.response.data.detail
+        }
+      } else {
+        // 只在真正没有具体错误信息时才显示通用错误
+        return {
+          success: false,
+          error: '工号或密码错误'
+        }
       }
     }
   }
@@ -86,6 +112,7 @@ export const useAuthStore = defineStore('auth', () => {
     token,
     user,
     isLoggedIn,
+    isAdmin,
 
     // 方法
     checkAuth,

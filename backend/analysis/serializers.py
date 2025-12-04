@@ -37,13 +37,15 @@ class TrainingMaterialSerializer(serializers.ModelSerializer):
         required=False
     )
     tag_details = TagSerializer(source='tags', many=True, read_only=True)
+    creator_name = serializers.CharField(source='creator.username', read_only=True)
+    creator_job_number = serializers.CharField(source='creator.job_number', read_only=True)
 
     class Meta:
         model = TrainingMaterial
         fields = ('id', 'title', 'description', 'material_type',
                  'url', 'file_path', 'tags', 'tag_details',
-                 'is_active', 'created_at')
-        read_only_fields = ('id', 'created_at')
+                 'creator_name', 'creator_job_number', 'is_active', 'is_public', 'created_at')
+        read_only_fields = ('id', 'creator_name', 'creator_job_number', 'created_at')
 
 
 class UserCapabilitySummarySerializer(serializers.Serializer):

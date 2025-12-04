@@ -146,7 +146,7 @@
       <div class="action-buttons">
         <el-button type="primary" size="large" @click="handleGoToDashboard">
           <el-icon><HomeFilled /></el-icon>
-          返回工作台
+          {{ isAdmin ? '返回管理员控制台' : '返回工作台' }}
         </el-button>
         <el-button size="large" @click="handleViewAnalysis">
           <el-icon><TrendCharts /></el-icon>
@@ -163,7 +163,7 @@
       >
         <template #extra>
           <el-button type="primary" @click="handleGoToDashboard">
-            返回工作台
+            {{ isAdmin ? '返回管理员控制台' : '返回工作台' }}
           </el-button>
         </template>
       </el-result>
@@ -172,7 +172,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, toRaw } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Clock, Document, TrendCharts, Close, HomeFilled } from '@element-plus/icons-vue'
@@ -182,6 +182,12 @@ import { useAuthStore } from '@/stores/auth'
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+
+// 判断是否为管理员
+const isAdmin = computed(() => {
+  const rawUser = toRaw(authStore.user)
+  return Boolean(rawUser?.is_staff)
+})
 
 // 响应式数据
 const loading = ref(true)
@@ -274,10 +280,7 @@ const fetchExamResult = async () => {
       return
     }
 
-    console.log('获取考试结果，ID:', examId)
-    console.log('当前路由参数:', JSON.stringify(route.params))
-    console.log('当前用户信息:', JSON.stringify(authStore.user))
-
+  
     // 权限通过，继续获取详情
     const response = await getExamDetail(examId)
 
@@ -329,9 +332,13 @@ const formatDuration = (seconds) => {
   }
 }
 
-// 返回工作台
+// 返回工作台/管理员控制台
 const handleGoToDashboard = () => {
-  router.push('/')
+  if (isAdmin.value) {
+    router.push('/admin')
+  } else {
+    router.push('/')
+  }
 }
 
 // 查看能力分析

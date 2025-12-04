@@ -8,7 +8,7 @@
           <div class="exam-meta">
             <el-tag type="primary" size="large">
               <el-icon><Document /></el-icon>
-              共 {{ questions?.length || 0 }} 题
+              共 {{ examQuestions?.length || 0 }} 题
             </el-tag>
             <el-tag type="success" size="large">
               <el-icon><Clock /></el-icon>
@@ -17,9 +17,16 @@
           </div>
         </div>
         <div class="exam-actions">
-          <el-button type="primary" size="large" @click="handleSubmitExam">
+          <el-button
+            type="primary"
+            size="large"
+            @click="handleSubmitExam"
+            :disabled="!allQuestionsAnswered || submitting"
+            :title="allQuestionsAnswered ? '提交试卷' : '请回答所有题目后再提交'"
+          >
             <el-icon><Check /></el-icon>
             提交试卷
+            <span v-if="!allQuestionsAnswered" class="unanswered-hint">({{ unansweredQuestions.length }} 题未答)</span>
           </el-button>
           <el-button size="large" @click="handleExitExam">
             <el-icon><Close /></el-icon>
@@ -32,7 +39,7 @@
           :percentage="progressPercentage"
           :stroke-width="8"
           :show-text="true"
-          :format="(percentage) => `答题进度: ${answeredCount}/${questions?.length || 0}`"
+          :format="(percentage) => `答题进度: ${answeredCount}/${examQuestions?.length || 0}`"
         />
       </div>
     </el-card>
@@ -44,22 +51,27 @@
           <el-icon><List /></el-icon>
           <span>题目导航</span>
           <el-tag type="info" size="small">
-            当前进度: {{ currentQuestionIndex + 1 }} / {{ questions?.length || 0 }}
+            当前进度: {{ currentQuestionIndex + 1 }} / {{ examQuestions?.length || 0 }}
           </el-tag>
         </div>
       </template>
       <div class="nav-grid">
-        <div
-          v-for="(question, index) in (questions || [])"
-          :key="question?.id || index"
-          class="nav-item"
-          :class="{
-            'current': index === currentQuestionIndex,
-            'answered': question?.id && getAnswer(question.id)
-          }"
-          @click="goToQuestion(index)"
-        >
-          {{ index + 1 }}
+        <div v-if="examQuestions && examQuestions.length > 0">
+          <div
+            v-for="(question, index) in examQuestions"
+            :key="question?.id || index"
+            class="nav-item"
+            :class="{
+              'current': index === currentQuestionIndex,
+              'answered': question?.id && getAnswer(question.id)
+            }"
+            @click="goToQuestion(index)"
+          >
+            {{ index + 1 }}
+          </div>
+        </div>
+        <div v-else class="no-questions">
+          没有题目数据
         </div>
       </div>
     </el-card>
@@ -67,7 +79,7 @@
     <!-- 题目内容区 -->
     <div class="questions-area">
       <div
-        v-for="(question, index) in (questions || [])"
+        v-for="(question, index) in (examQuestions || [])"
         :key="question?.id || index"
         v-show="index === currentQuestionIndex"
         class="question-card"
@@ -138,56 +150,7 @@
       </div>
     </div>
 
-    <!-- 提交确认对话框 -->
-    <el-dialog
-      v-model="submitDialogVisible"
-      title="提交确认"
-      width="500px"
-      :close-on-click-modal="false"
-      :close-on-press-escape="false"
-    >
-      <div class="submit-confirm">
-        <el-alert
-          type="warning"
-          :closable="false"
-          show-icon
-          style="margin-bottom: 20px;"
-        >
-          确认要提交试卷吗？提交后将无法修改答案。
-        </el-alert>
-
-        <div class="submit-stats">
-          <p><strong>答题进度:</strong> {{ answeredCount }} / {{ questions?.length || 0 }} ({{ Math.round(progressPercentage) }}%)</p>
-          <p v-if="unansweredQuestions.length > 0" class="unanswered-warning">
-            <strong>未答题目:</strong>
-            <el-tag
-              v-for="index in unansweredQuestions"
-              :key="index"
-              size="small"
-              type="danger"
-              style="margin-left: 4px;"
-            >
-              {{ index + 1 }}
-            </el-tag>
-          </p>
-        </div>
       </div>
-
-      <template #footer>
-        <div class="dialog-footer">
-          <el-button @click="submitDialogVisible = false">取消</el-button>
-          <el-button
-            type="primary"
-            @click="confirmSubmit"
-            :loading="submitting"
-            :disabled="submitting"
-          >
-            确认提交
-          </el-button>
-        </div>
-      </template>
-    </el-dialog>
-  </div>
 </template>
 
 <script setup lang="ts">
@@ -208,10 +171,9 @@ const authStore = useAuthStore()
 // 响应式数据
 const loading = ref(false)
 const submitting = ref(false)
-const submitDialogVisible = ref(false)
 
 // 从 store 获取状态 - 使用 storeToRefs 保持响应性
-const { currentExam, questions, currentQuestionIndex, userAnswers, examTime, currentQuestion,
+const { currentExam, examQuestions, currentQuestionIndex, userAnswers, examTime, currentQuestion,
         answeredCount, progressPercentage, isLastQuestion, isFirstQuestion, isGenerating } = storeToRefs(examStore)
 
 // 获取方法（不需要 storeToRefs）
@@ -219,13 +181,18 @@ const { saveAnswer, getAnswer, goToQuestion, nextQuestion, prevQuestion, formatT
 
 // 计算未答题目
 const unansweredQuestions = computed(() => {
-  if (!questions.value || !Array.isArray(questions.value)) return []
-  return questions.value
+  if (!examQuestions.value || !Array.isArray(examQuestions.value)) return []
+  return examQuestions.value
     .map((_, index) => index)
     .filter(index => {
-      const question = questions.value[index]
+      const question = examQuestions.value[index]
       return question && question.id && !getAnswer(question.id)
     })
+})
+
+// 检查是否所有题目都已回答
+const allQuestionsAnswered = computed(() => {
+  return unansweredQuestions.value.length === 0
 })
 
 // 初始化考试
@@ -236,30 +203,28 @@ const initExam = async () => {
     let examData
 
     if (route.params.id === 'generate') {
-      // 生成新试卷 - 添加防重复检查
-      if (isGenerating.value || examStore.currentExam) {
-        console.log('考试正在生成中，跳过重复生成')
+      if (isGenerating.value) {
         return
       }
 
-      isGenerating.value = true // 设置生成标志
+      isGenerating.value = true
       const response = await generateExam({
         reason: 'daily_practice',
         question_count: 15
       })
       examData = response
 
-      // 开始考试
-      await startExam(examData.paper_id)
-
-      // 获取题目详情
-      const detailResponse = await getExamDetail(examData.paper_id)
-      console.log('生成的试卷数据:', detailResponse)
-      console.log('题目数量:', detailResponse.questions?.length || 0)
-      examStore.setExam(detailResponse)
-      examStore.setQuestions(detailResponse.questions || [])
-
-      isGenerating.value = false // 清除生成标志
+      const startResponse = await startExam(examData.paper_id)
+      examStore.setExam({
+        id: examData.paper_id,
+        title: examData.title,
+        status: startResponse.status,
+        time_limit: examData.time_limit,
+        started_at: startResponse.started_at,
+        question_count: examData.question_count
+      })
+      examStore.setQuestions(startResponse.questions || [])
+      isGenerating.value = false
     } else {
       // 获取已有试卷
       const examId = route.params.id
@@ -268,18 +233,20 @@ const initExam = async () => {
 
       // 检查是否已经在该试卷中
       if (examStore.currentExam && examStore.currentExam.id === detailResponse.id) {
-        console.log('试卷已经加载，跳过重复初始化')
         isGenerating.value = false // 重置生成状态
         return
       }
 
       // 如果试卷未开始，需要开始考试
       if (detailResponse.status === 'not_started') {
-        await startExam(examId)
+        const startResponse = await startExam(examId)
+        examStore.setExam(startResponse)
+        examStore.setQuestions(startResponse.questions || [])
+      } else {
+        // 试卷已经开始，直接使用详情数据
+        examStore.setExam(detailResponse)
+        examStore.setQuestions(detailResponse.questions || [])
       }
-
-      examStore.setExam(detailResponse)
-      examStore.setQuestions(detailResponse.questions || [])
     }
 
     // 开始计时
@@ -291,13 +258,12 @@ const initExam = async () => {
     router.push('/')
   } finally {
     loading.value = false
-    isGenerating.value = false // 确保重置生成状态
   }
 }
 
 // 选择选项
 const handleSelectOption = (questionId, optionKey) => {
-  const question = questions.value.find(q => q.id === questionId)
+  const question = examQuestions.value.find(q => q.id === questionId)
   if (!question) return
 
   let currentAnswer = getAnswer(questionId)
@@ -321,8 +287,10 @@ const handleSelectOption = (questionId, optionKey) => {
 
       saveAnswer(questionId, answers.sort().join(','))
     } else {
-      // 首次选择
-      saveAnswer(questionId, optionKey)
+      // 首次选择或没有当前答案的情况
+      if (!currentAnswer || !currentAnswer.includes(optionKey)) {
+        saveAnswer(questionId, optionKey)
+      }
     }
   } else if (question.question_type === 'true_false') {
     // 判断题：直接替换答案
@@ -335,7 +303,7 @@ const isOptionSelected = (questionId, optionKey) => {
   const answer = getAnswer(questionId)
   if (!answer) return false
 
-  const question = questions.value.find(q => q.id === questionId)
+  const question = examQuestions.value.find(q => q.id === questionId)
   if (question.question_type === 'multiple') {
     return answer.split(',').includes(optionKey)
   } else {
@@ -384,20 +352,70 @@ const handleExitExam = async () => {
 }
 
 // 处理提交考试
-const handleSubmitExam = () => {
+const handleSubmitExam = async () => {
   // 防止重复提交
   if (submitting.value) {
-    console.log('试卷正在提交中，跳过重复操作')
     return
   }
-  submitDialogVisible.value = true
+
+  submitting.value = true
+
+  try {
+    // 深度安全检查：缓存考试信息
+    const examInfo = examStore.currentExam
+
+    if (!examInfo || !examInfo.id) {
+      ElMessage.error('考试信息无效')
+      return
+    }
+
+    // 构建答案数据
+    const answers = {}
+    examQuestions.value.forEach(question => {
+      const answer = examStore.getAnswer(question.id)
+      if (answer) {
+        // 对于多选题，答案可能是逗号分隔的字符串，需要转换为数组
+        if (question.question_type === 'multiple_choice' && answer.includes(',')) {
+          answers[question.id] = answer.split(',').map(a => a.trim())
+        } else {
+          answers[question.id] = answer
+        }
+      }
+    })
+
+    // 调用提交 API
+    await submitExam(examInfo.id, { answers })
+
+    ElMessage.success('试卷提交成功！')
+    examStore.stopTimer()
+    router.push(`/result/${examInfo.id}`)
+  } catch (error) {
+    console.error('提交试卷失败:', error)
+    let errorMessage = '提交试卷失败，请稍后重试'
+
+    if (error.response?.data) {
+      const errorData = error.response.data
+      if (errorData.error) {
+        errorMessage = errorData.error
+      } else if (errorData.detail) {
+        errorMessage = errorData.detail
+      } else if (typeof errorData === 'string') {
+        errorMessage = errorData
+      }
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+
+    ElMessage.error(errorMessage)
+  } finally {
+    submitting.value = false
+  }
 }
 
 // 确认提交
 const confirmSubmit = async () => {
   // 第一时间防止重复提交
   if (submitting.value) {
-    console.log('试卷正在提交中，跳过重复操作')
     return
   }
 
@@ -424,16 +442,21 @@ const confirmSubmit = async () => {
 
     // 构建答案数据
     const answers = {}
-    questions.value.forEach(question => {
+    examQuestions.value.forEach(question => {
       const answer = examStore.getAnswer(question.id)
       if (answer) {
-        answers[question.id] = answer
+        // 对于多选题，答案可能是逗号分隔的字符串，需要转换为数组
+        if (question.question_type === 'multiple_choice' && answer.includes(',')) {
+          answers[question.id] = answer.split(',').map(a => a.trim())
+        } else {
+          answers[question.id] = answer
+        }
       }
     })
 
     // 检查答题完整性
     const answeredQuestions = Object.keys(answers)
-    const unansweredCount = questions.value.length - answeredQuestions.length
+    const unansweredCount = examQuestions.value.length - answeredQuestions.length
 
     if (unansweredCount > 0) {
       const confirmUnfinished = await ElMessageBox.confirm(
@@ -471,7 +494,6 @@ const confirmSubmit = async () => {
     }
 
     // 执行提交
-    console.log('开始提交考试，ID:', currentExamId)
     const result = await submitExam(currentExamId, { answers })
 
     // 立即跳转，避免状态问题
@@ -499,9 +521,6 @@ const confirmSubmit = async () => {
   } finally {
     submitting.value = false
     submitDialogVisible.value = false
-
-    // 无论成功失败，都要确保界面状态正确
-    console.log('提交操作完成，submitting:', submitting.value)
   }
 }
 
@@ -515,11 +534,6 @@ watch(() => route.params.id, (newId) => {
 
 // 生命周期
 onMounted(() => {
-  // 防止重复初始化
-  if (isGenerating.value) {
-    console.log('考试正在生成中，跳过初始化')
-    return
-  }
   initExam()
 })
 
@@ -538,6 +552,12 @@ onUnmounted(() => {
   gap: 24px;
   min-height: 100vh;
   background: #f8f9fb;
+}
+
+.unanswered-hint {
+  font-size: 12px;
+  color: #f56c6c;
+  margin-left: 4px;
 }
 
 .exam-header {
@@ -628,6 +648,14 @@ onUnmounted(() => {
   background: #f0f9ff;
   border-color: #67c23a;
   color: #67c23a;
+}
+
+.no-questions {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 20px;
+  color: #909399;
+  font-size: 16px;
 }
 
 .questions-area {

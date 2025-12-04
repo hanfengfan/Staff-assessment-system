@@ -47,7 +47,11 @@ request.interceptors.response.use(
 
     switch (status) {
       case 400:
-        ElMessage.error('请求参数错误')
+        // 对于登录接口，不显示通用错误，让业务逻辑处理
+        // 其他接口可以显示通用错误
+        if (!error.config.url.includes('/auth/login/')) {
+          ElMessage.error('请求参数错误')
+        }
         break
       case 401:
         ElMessage.error('未授权，请重新登录')

@@ -69,13 +69,29 @@ class ExamPaperDetailSerializer(serializers.ModelSerializer):
     """试卷详细序列化器"""
     exam_records = ExamRecordSerializer(many=True, read_only=True)
     user_name = serializers.SerializerMethodField()
+    questions = serializers.SerializerMethodField()  # 添加questions字段
 
     class Meta:
         model = ExamPaper
         fields = ('id', 'user_name', 'title', 'status', 'total_score',
                  'score_obtained', 'generation_reason', 'time_limit',
-                 'started_at', 'completed_at', 'exam_records', 'created_at')
+                 'started_at', 'completed_at', 'exam_records', 'questions', 'created_at')
         read_only_fields = ('id', 'created_at', 'started_at', 'completed_at')
+
+    def get_questions(self, obj):
+        """获取试卷题目数据"""
+        questions_data = []
+        for record in obj.exam_records.select_related('question').prefetch_related('question__tags').all():
+            question = record.question
+            questions_data.append({
+                'id': question.id,
+                'content': question.content,
+                'question_type': question.question_type,
+                'options': question.options,
+                'difficulty': question.difficulty,
+                'tags': [{'id': tag.id, 'name': tag.name} for tag in question.tags.all()]
+            })
+        return questions_data
 
     def get_user_name(self, obj):
         return f"{obj.user.job_number} - {obj.user.get_full_name() or obj.user.username}"

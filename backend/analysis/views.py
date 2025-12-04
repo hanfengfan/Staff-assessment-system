@@ -1,7 +1,7 @@
 from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from django.db.models import Avg, Count
+from django.db.models import Avg, Count, Q
 from django.utils import timezone
 from datetime import timedelta
 
@@ -31,12 +31,43 @@ class TrainingMaterialListView(generics.ListAPIView):
     serializer_class = TrainingMaterialSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_queryset(self):
+        # 管理员可以看到所有资料，普通用户只能看到自己的
+        if self.request.user.is_staff:
+            return super().get_queryset()
+        else:
+            # 普通用户只能看到公开的资料或自己的资料
+            return super().get_queryset().filter(
+                Q(is_public=True) | Q(creator=self.request.user)
+            )
+
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def radar_chart_data(request):
     """获取用户能力雷达图数据"""
-    user = request.user
+    # 检查是否为管理员查看其他用户
+    target_user_id = request.GET.get('user_id')
+
+    if target_user_id:
+        # 管理员权限检查
+        if not request.user.is_staff:
+            return Response({
+                'error': '无权限查看其他用户数据'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # 管理员查看指定用户
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        try:
+            user = User.objects.get(id=target_user_id)
+        except User.DoesNotExist:
+            return Response({
+                'error': '用户不存在'
+            }, status=status.HTTP_404_NOT_FOUND)
+    else:
+        # 普通用户查看自己的数据
+        user = request.user
 
     # 获取用户的能力画像数据
     profiles = CapabilityProfile.objects.filter(
@@ -65,7 +96,28 @@ def radar_chart_data(request):
 @permission_classes([permissions.IsAuthenticated])
 def capability_summary(request):
     """获取用户能力总结"""
-    user = request.user
+    # 检查是否为管理员查看其他用户
+    target_user_id = request.GET.get('user_id')
+
+    if target_user_id:
+        # 管理员权限检查
+        if not request.user.is_staff:
+            return Response({
+                'error': '无权限查看其他用户数据'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # 管理员查看指定用户
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        try:
+            user = User.objects.get(id=target_user_id)
+        except User.DoesNotExist:
+            return Response({
+                'error': '用户不存在'
+            }, status=status.HTTP_404_NOT_FOUND)
+    else:
+        # 普通用户查看自己的数据
+        user = request.user
 
     # 计算总体平均分
     profiles = CapabilityProfile.objects.filter(user=user)
@@ -102,6 +154,8 @@ def capability_summary(request):
 
     summary_data = {
         'user_id': user.id,
+        'username': user.username,
+        'job_number': user.job_number,
         'overall_score': round(overall_score, 2),
         'weak_tags': weak_tags,
         'strong_tags': strong_tags,
@@ -117,8 +171,29 @@ def capability_summary(request):
 @permission_classes([permissions.IsAuthenticated])
 def trend_data(request):
     """获取能力变化趋势数据"""
-    user = request.user
+    # 检查是否为管理员查看其他用户
+    target_user_id = request.GET.get('user_id')
     days = int(request.GET.get('days', 30))  # 默认30天
+
+    if target_user_id:
+        # 管理员权限检查
+        if not request.user.is_staff:
+            return Response({
+                'error': '无权限查看其他用户数据'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # 管理员查看指定用户
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        try:
+            user = User.objects.get(id=target_user_id)
+        except User.DoesNotExist:
+            return Response({
+                'error': '用户不存在'
+            }, status=status.HTTP_404_NOT_FOUND)
+    else:
+        # 普通用户查看自己的数据
+        user = request.user
 
     # 获取指定天数内的已完成考试
     cutoff_date = timezone.now() - timedelta(days=days)
@@ -172,10 +247,10 @@ def trend_data(request):
 @permission_classes([permissions.IsAdminUser])
 def create_training_material(request):
     """创建培训资料（管理员专用）"""
+    # 设置创建者为当前用户
     serializer = TrainingMaterialSerializer(data=request.data)
-
     if serializer.is_valid():
-        material = serializer.save()
+        material = serializer.save(creator=request.user)
         return Response({
             'message': '培训资料创建成功',
             'material_id': material.id
@@ -221,3 +296,28 @@ def weak_tag_recommendations(request):
         'weak_tags': recommendations,
         'total_count': len(recommendations)
     })
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAdminUser])
+def user_list(request):
+    """获取用户列表（管理员专用）"""
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+
+    # 排除超级管理员，只返回普通用户
+    users = User.objects.filter(is_staff=False).order_by('job_number')
+
+    user_data = [
+        {
+            'id': user.id,
+            'username': user.username,
+            'job_number': user.job_number,
+            'is_active': user.is_active,
+            'date_joined': user.date_joined,
+            'last_login': user.last_login
+        }
+        for user in users
+    ]
+
+    return Response(user_data)

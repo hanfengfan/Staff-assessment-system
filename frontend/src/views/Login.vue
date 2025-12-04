@@ -114,35 +114,26 @@ const rules = {
 
 // 登录处理
 const handleLogin = async () => {
-  console.log('登录处理开始')
   if (!formRef.value) return
 
   try {
     await formRef.value.validate()
     loading.value = true
-    console.log('表单验证通过，登录数据:', loginForm)
 
     const result = await authStore.loginAction(loginForm)
-    console.log('登录结果:', result)
 
     if (result.success) {
       ElMessage.success('登录成功')
-      console.log('登录成功，准备跳转')
-
-      // 检查是否有重定向地址
       const redirect = route.query.redirect || '/'
-      console.log('跳转到:', redirect)
-
-      // 使用 nextTick 确保DOM更新后再跳转
       await nextTick()
       router.push(redirect)
     } else {
-      console.error('登录失败:', result.error)
       ElMessage.error(result.error)
     }
   } catch (error) {
     console.error('登录异常:', error)
-    ElMessage.error('登录失败，请检查用户名和密码')
+    // 这里只处理真正的网络异常等，登录错误已经在 loginAction 中处理了
+    ElMessage.error('网络异常，请稍后重试')
   } finally {
     loading.value = false
   }
@@ -150,8 +141,7 @@ const handleLogin = async () => {
 
 // 页面加载时检查登录状态
 onMounted(() => {
-  console.log('Login组件mounted，当前登录状态:', authStore.isLoggedIn)
-
+  
   // 如果已经登录，重定向到工作台
   if (authStore.isLoggedIn) {
     router.push('/')

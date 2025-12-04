@@ -116,7 +116,6 @@ export const useExamStore = defineStore('exam', () => {
     // 状态
     currentExam,
     examQuestions,
-    questions: examQuestions, // 添加 questions 别名以保持兼容性
     currentQuestionIndex,
     userAnswers,
     examTime,
@@ -125,7 +124,7 @@ export const useExamStore = defineStore('exam', () => {
     progressPercentage,
     isLastQuestion,
     isFirstQuestion,
-    isGenerating, // 添加：防重复生成标志
+    isGenerating,
 
     // 方法
     startTimer,

@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 // 路由组件懒加载
 const Login = () => import('@/views/Login.vue')
 const Dashboard = () => import('@/views/Dashboard.vue')
+const AdminDashboard = () => import('@/views/AdminDashboard.vue')
 const ExamTaking = () => import('@/views/ExamTaking.vue')
 const ExamResult = () => import('@/views/ExamResult.vue')
 
@@ -45,6 +46,16 @@ const routes = [
       requiresAuth: true
     }
   },
+  {
+    path: '/admin',
+    name: 'AdminDashboard',
+    component: AdminDashboard,
+    meta: {
+      title: '管理员控制台',
+      requiresAuth: true,
+      requiresAdmin: true
+    }
+  },
     {
     // 404页面
     path: '/:pathMatch(.*)*',
@@ -65,6 +76,19 @@ router.beforeEach(async (to, from, next) => {
   // 设置页面标题
   if (to.meta.title) {
     document.title = `${to.meta.title} - 轨道交通站务人员AI智能考核系统`
+  }
+
+  // 检查是否需要管理员权限
+  if (to.meta.requiresAdmin) {
+    if (!authStore.isLoggedIn || !authStore.isAdmin) {
+      next({
+        path: '/login',
+        query: { redirect: to.fullPath }
+      })
+    } else {
+      next()
+    }
+    return
   }
 
   // 检查是否需要认证
@@ -91,7 +115,14 @@ router.beforeEach(async (to, from, next) => {
     // 不需要认证的页面
     if (to.name === 'Login' && authStore.isLoggedIn) {
       // 已登录用户访问登录页，重定向到工作台
-      next('/')
+      if (authStore.isAdmin) {
+        next('/admin')
+      } else {
+        next('/')
+      }
+    } else if (to.path === '/' && authStore.isLoggedIn && authStore.isAdmin) {
+      // 管理员访问根路径，重定向到管理员页面
+      next('/admin')
     } else {
       next()
     }
