@@ -11,7 +11,7 @@ from datetime import timedelta
 from .models import Question, Tag, ExamPaper, ExamRecord
 from .serializers import (
     QuestionSerializer, QuestionDetailSerializer,
-    ExamPaperListSerializer, ExamPaperDetailSerializer,
+    ExamPaperListSerializer, ExamPaperDetailSerializer, ExamPaperResultSerializer,
     TagSerializer
 )
 from .services import ExamGenerationService
@@ -87,6 +87,15 @@ class ExamPaperDetailView(generics.RetrieveUpdateDestroyAPIView):
         else:
             # 普通用户只能看到自己的试卷
             return ExamPaper.objects.filter(user=self.request.user)
+
+    def get_serializer_class(self):
+        """根据试卷状态选择不同的序列化器"""
+        instance = self.get_object()
+        # 如果是已完成状态，使用带答案的序列化器
+        if instance.status == ExamPaper.Status.COMPLETED:
+            return ExamPaperResultSerializer
+        # 其他状态使用默认序列化器（不包含答案）
+        return super().get_serializer_class()
 
     def retrieve(self, request, *args, **kwargs):
         """重写retrieve方法以返回题目数据"""

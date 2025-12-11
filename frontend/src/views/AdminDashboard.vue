@@ -76,17 +76,39 @@
       <div v-show="showExamFilter" class="filter-panel">
         <el-form :model="examFilter" inline>
           <el-form-item label="用户">
-            <el-select v-model="examFilter.userId" placeholder="选择用户" clearable>
+            <el-select
+              v-model="examFilter.userId"
+              placeholder="选择用户"
+              clearable
+              filterable
+              style="width: 220px"
+              v-loading="userList.length === 0"
+              element-loading-text="加载用户列表中..."
+            >
               <el-option
                 v-for="user in userList"
                 :key="user.id"
-                :label="`${user.username} (${user.job_number})`"
+                :label="`${user.username || user.get_full_name} (${user.job_number || '无工号'})`"
                 :value="user.id"
-              />
+              >
+                <span style="float: left">{{ user.username || user.get_full_name || '未知用户' }}</span>
+                <span style="float: right; color: #8492a6; font-size: 13px">{{ user.job_number || '无工号' }}</span>
+              </el-option>
+              <template v-if="userList.length === 0" #empty>
+                <div style="padding: 14px 0;">
+                  <span>{{ userList.length === 0 && !loading ? '暂无用户数据' : '加载中...' }}</span>
+                </div>
+              </template>
             </el-select>
           </el-form-item>
           <el-form-item label="状态">
-            <el-select v-model="examFilter.status" placeholder="选择状态" clearable>
+            <el-select
+              v-model="examFilter.status"
+              placeholder="选择状态"
+              clearable
+              :popper-append-to-body="false"
+              style="width: 150px"
+            >
               <el-option label="已完成" value="completed" />
               <el-option label="进行中" value="in_progress" />
               <el-option label="未开始" value="not_started" />
@@ -106,8 +128,8 @@
         style="width: 100%"
       >
         <el-table-column type="selection" width="55" />
-        <el-table-column prop="user.username" label="用户" width="150" />
-        <el-table-column prop="user.job_number" label="工号" width="120" />
+        <el-table-column prop="username" label="用户" width="150" />
+        <el-table-column prop="job_number" label="工号" width="120" />
         <el-table-column prop="title" label="试卷标题" width="200" />
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
@@ -116,7 +138,11 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="total_score" label="总分" width="100" />
+        <el-table-column label="得分/总分" width="120">
+          <template #default="{ row }">
+            {{ row.score_obtained !== null ? `${row.score_obtained}/${row.total_score}` : '-' }}
+          </template>
+        </el-table-column>
         <el-table-column prop="created_at" label="创建时间" width="180">
           <template #default="{ row }">
             {{ formatDate(row.created_at) }}
@@ -201,10 +227,21 @@ const fetchStats = async () => {
 const fetchUserList = async () => {
   try {
     const response = await getUserList()
-    userList.value = response.results || []
+    console.log('用户列表响应:', response)
+    // 处理可能的响应结构
+    if (response && response.results) {
+      userList.value = response.results
+    } else if (Array.isArray(response)) {
+      userList.value = response
+    } else {
+      userList.value = []
+      console.warn('用户列表数据格式异常:', response)
+    }
+    console.log('处理后的用户列表:', userList.value)
   } catch (error) {
     console.error('获取用户列表失败:', error)
     ElMessage.error('获取用户列表失败')
+    userList.value = []
   }
 }
 
@@ -440,6 +477,22 @@ onMounted(() => {
   background: #f5f7fa;
   border-radius: 4px;
   margin-bottom: 16px;
+}
+
+/* 优化筛选面板中的表单项 */
+.filter-panel .el-form-item {
+  margin-bottom: 0;
+}
+
+/* 优化下拉选项的样式 */
+.filter-panel .el-select-dropdown {
+  max-width: 300px;
+}
+
+.filter-panel .el-select-dropdown__item {
+  height: 40px;
+  line-height: 40px;
+  padding: 0 20px;
 }
 
 .pagination-wrapper {

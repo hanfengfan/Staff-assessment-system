@@ -2,45 +2,74 @@
   <div class="exam-container">
     <!-- 考试头部 -->
     <el-card class="exam-header">
-      <div class="header-content">
-        <div class="exam-info">
-          <h2>{{ currentExam?.title }}</h2>
-          <div class="exam-meta">
-            <el-tag type="primary" size="large">
-              <el-icon><Document /></el-icon>
-              共 {{ examQuestions?.length || 0 }} 题
-            </el-tag>
-            <el-tag type="success" size="large">
-              <el-icon><Clock /></el-icon>
-              <span class="timer">{{ formatTime(examTime) }}</span>
-            </el-tag>
+      <div class="header-main">
+        <div class="exam-title-section">
+          <div class="exam-icon">
+            <el-icon size="32"><Document /></el-icon>
+          </div>
+          <div class="exam-info">
+            <h1>{{ currentExam?.title }}</h1>
           </div>
         </div>
+
+        <div class="exam-stats">
+          <div class="stat-item">
+            <div class="stat-icon">
+              <el-icon><Document /></el-icon>
+            </div>
+            <div class="stat-content">
+              <div class="stat-number">{{ examQuestions?.length || 0 }}</div>
+              <div class="stat-label">题目总数</div>
+            </div>
+          </div>
+
+          <div class="stat-divider"></div>
+
+          <div class="stat-item">
+            <div class="stat-icon timer-icon">
+              <el-icon><Clock /></el-icon>
+            </div>
+            <div class="stat-content">
+              <div class="stat-number timer">{{ formatTime(examTime) }}</div>
+              <div class="stat-label">已用时间</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-footer">
+        <div class="progress-section">
+          <div class="progress-info">
+            <span class="progress-text">答题进度</span>
+            <span class="progress-count">{{ answeredCount }}/{{ examQuestions?.length || 0 }}</span>
+          </div>
+          <div class="progress-bar">
+            <el-progress
+              :percentage="progressPercentage"
+              :stroke-width="6"
+              :show-text="false"
+            />
+          </div>
+        </div>
+
         <div class="exam-actions">
+          <el-button size="default" @click="handleExitExam" class="exit-btn">
+            <el-icon><Close /></el-icon>
+            退出考试
+          </el-button>
           <el-button
             type="primary"
-            size="large"
+            size="default"
             @click="handleSubmitExam"
             :disabled="!allQuestionsAnswered || submitting"
             :title="allQuestionsAnswered ? '提交试卷' : '请回答所有题目后再提交'"
+            class="submit-btn"
           >
             <el-icon><Check /></el-icon>
             提交试卷
             <span v-if="!allQuestionsAnswered" class="unanswered-hint">({{ unansweredQuestions.length }} 题未答)</span>
           </el-button>
-          <el-button size="large" @click="handleExitExam">
-            <el-icon><Close /></el-icon>
-            退出考试
-          </el-button>
         </div>
-      </div>
-      <div class="progress-bar">
-        <el-progress
-          :percentage="progressPercentage"
-          :stroke-width="8"
-          :show-text="true"
-          :format="(percentage) => `答题进度: ${answeredCount}/${examQuestions?.length || 0}`"
-        />
       </div>
     </el-card>
 
@@ -56,19 +85,18 @@
         </div>
       </template>
       <div class="nav-grid">
-        <div v-if="examQuestions && examQuestions.length > 0">
-          <div
-            v-for="(question, index) in examQuestions"
-            :key="question?.id || index"
-            class="nav-item"
-            :class="{
-              'current': index === currentQuestionIndex,
-              'answered': question?.id && getAnswer(question.id)
-            }"
-            @click="goToQuestion(index)"
-          >
-            {{ index + 1 }}
-          </div>
+        <div
+          v-if="examQuestions && examQuestions.length > 0"
+          v-for="(question, index) in examQuestions"
+          :key="question?.id || index"
+          class="nav-item"
+          :class="{
+            'current': index === currentQuestionIndex,
+            'answered': question?.id && getAnswer(question.id)
+          }"
+          @click="goToQuestion(index)"
+        >
+          {{ index + 1 }}
         </div>
         <div v-else class="no-questions">
           没有题目数据
@@ -171,6 +199,7 @@ const authStore = useAuthStore()
 // 响应式数据
 const loading = ref(false)
 const submitting = ref(false)
+const submitDialogVisible = ref(false)
 
 // 从 store 获取状态 - 使用 storeToRefs 保持响应性
 const { currentExam, examQuestions, currentQuestionIndex, userAnswers, examTime, currentQuestion,
@@ -544,12 +573,12 @@ onUnmounted(() => {
 
 <style scoped>
 .exam-container {
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 40px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 30px;
   min-height: 100vh;
   background: #f8f9fb;
 }
@@ -563,40 +592,253 @@ onUnmounted(() => {
 .exam-header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #fff;
-  margin-bottom: 20px;
+  margin-bottom: 0;
+  padding: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+  border: none;
 }
 
-.header-content {
+.header-main {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 32px 40px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.exam-title-section {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.exam-icon {
+  width: 64px;
+  height: 64px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.exam-info h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.exam-stats {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-left: 60px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.stat-icon {
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.timer-icon {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+.stat-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-number {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.stat-number.timer {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+  letter-spacing: 1px;
+}
+
+.stat-label {
+  font-size: 12px;
+  opacity: 0.9;
+  font-weight: 500;
+}
+
+.stat-divider {
+  width: 1px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.header-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+  padding: 24px 40px;
+  background: rgba(255, 255, 255, 0.05);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.exam-info h2 {
-  margin: 0 0 10px 0;
-  font-size: 24px;
-  font-weight: bold;
+.progress-section {
+  flex: 1;
+  margin-right: 40px;
 }
 
-.exam-meta {
+.progress-info {
   display: flex;
-  gap: 12px;
+  justify-content: space-between;
   align-items: center;
+  margin-bottom: 12px;
 }
 
-.timer {
-  font-family: 'Courier New', monospace;
-  font-weight: bold;
+.progress-text {
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.progress-count {
+  font-size: 14px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 4px 12px;
+  border-radius: 20px;
 }
 
 .exam-actions {
   display: flex;
+  flex-direction: column;
   gap: 12px;
+  width: 160px;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.exam-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 160px;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.exam-actions :deep(.el-button) {
+  width: 100% !important;
+  height: 44px !important;
+  font-size: 14px !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 16px !important;
+  text-align: center !important;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  transition: all 0.3s ease !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.exam-actions :deep(.el-button:not(.is-primary)) {
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: #303133 !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+.exam-actions :deep(.el-button:not(.is-primary):hover) {
+  background: #ffffff !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
+}
+
+.exam-actions :deep(.el-button.is-primary) {
+  background: #ffffff !important;
+  color: #667eea !important;
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+}
+
+.exam-actions :deep(.el-button.is-primary:hover:not(:disabled)) {
+  background: #f8f9fa !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3) !important;
+}
+
+.exam-actions :deep(.el-button:disabled) {
+  background: rgba(255, 255, 255, 0.3) !important;
+  color: rgba(255, 255, 255, 0.6) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.exam-actions :deep(.el-button .el-button__content) {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  gap: 6px !important;
+}
+
+.exam-actions :deep(.el-button .el-icon) {
+  margin: 0 !important;
+  flex-shrink: 0 !important;
+  font-size: 16px !important;
+}
+
+.exam-actions :deep(.el-button span:not(.el-icon)) {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* 进度条样式覆盖 */
+.progress-section :deep(.el-progress-bar__outer) {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+}
+
+.progress-section :deep(.el-progress-bar__inner) {
+  background: linear-gradient(90deg, #ffffff 0%, rgba(255, 255, 255, 0.9) 100%) !important;
+  border-radius: 10px !important;
+  transition: width 0.6s ease !important;
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.3) !important;
 }
 
 .question-nav {
-  margin-bottom: 24px;
+  margin-bottom: 0;
+  padding: 30px 40px;
 }
 
 .nav-header {
@@ -610,16 +852,23 @@ onUnmounted(() => {
 }
 
 .nav-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
-  gap: 12px;
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: wrap !important;
+  gap: 15px;
   padding: 20px 0;
+  justify-content: flex-start;
+  align-items: flex-start;
+  align-content: flex-start;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 .nav-item {
-  width: 60px;
-  height: 60px;
-  display: flex;
+  width: 50px;
+  height: 50px;
+  display: flex !important;
   align-items: center;
   justify-content: center;
   background: #f8f9fa;
@@ -627,21 +876,26 @@ onUnmounted(() => {
   border-radius: 8px;
   cursor: pointer;
   font-weight: bold;
-  font-size: 16px;
+  font-size: 14px;
   transition: all 0.3s ease;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
+  margin: 0;
 }
 
 .nav-item:hover {
   border-color: #409eff;
   background: #ecf5ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.2);
 }
 
 .nav-item.current {
   border-color: #409eff;
   background: #409eff;
   color: #fff;
-  transform: scale(1.1);
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
 }
 
 .nav-item.answered:not(.current) {
@@ -651,7 +905,7 @@ onUnmounted(() => {
 }
 
 .no-questions {
-  grid-column: 1 / -1;
+  width: 100%;
   text-align: center;
   padding: 20px;
   color: #909399;
@@ -666,9 +920,10 @@ onUnmounted(() => {
   background: #fff;
   border: 1px solid #e4e7ed;
   border-radius: 12px;
-  padding: 32px;
+  padding: 40px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
+  margin: 0 40px;
 }
 
 .question-card:hover {
@@ -823,10 +1078,52 @@ onUnmounted(() => {
   margin-top: 20px;
 }
 
+/* 平板端适配 */
+@media (max-width: 1024px) {
+  .exam-container {
+    padding: 30px;
+  }
+
+  .question-card {
+    margin: 0 20px;
+    padding: 30px;
+  }
+
+  .nav-item {
+    width: 45px;
+    height: 45px;
+    font-size: 13px;
+  }
+
+  .nav-grid {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 12px;
+  }
+
+  .exam-actions {
+    min-width: 120px;
+  }
+
+  .exit-btn,
+  .submit-btn {
+    width: 120px;
+    height: 48px;
+  }
+
+  .question-nav {
+    padding: 20px;
+  }
+}
+
 /* 移动端适配 */
 @media (max-width: 768px) {
   .exam-container {
-    padding: 10px;
+    padding: 20px;
+  }
+
+  .exam-header {
+    padding: 20px;
   }
 
   .header-content {
@@ -845,7 +1142,15 @@ onUnmounted(() => {
   }
 
   .exam-actions {
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    min-width: auto;
+  }
+
+  .exit-btn,
+  .submit-btn {
+    width: 200px;
+    height: 45px;
   }
 
   .question-header {
@@ -867,7 +1172,10 @@ onUnmounted(() => {
   }
 
   .nav-grid {
-    grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 10px;
+    justify-content: center;
   }
 
   .nav-item {
@@ -881,9 +1189,17 @@ onUnmounted(() => {
     gap: 15px;
   }
 
-  .question-navigation {
-    flex-direction: row;
-    justify-content: space-between;
+  .question-card {
+    margin: 0;
+    padding: 20px;
+  }
+
+  .question-nav {
+    padding: 15px;
+  }
+
+  .exam-header {
+    padding: 20px;
   }
 }
 </style>

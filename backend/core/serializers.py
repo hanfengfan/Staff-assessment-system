@@ -35,9 +35,29 @@ class QuestionDetailSerializer(QuestionSerializer):
         fields = QuestionSerializer.Meta.fields + ('correct_answer', 'explanation')
 
 
+class QuestionWithAnswerSerializer(QuestionSerializer):
+    """带正确答案的题目序列化器（用于错题解析）"""
+    correct_answer = serializers.CharField(read_only=True)
+    explanation = serializers.CharField(read_only=True)
+
+    class Meta(QuestionSerializer.Meta):
+        fields = QuestionSerializer.Meta.fields + ('correct_answer', 'explanation')
+
+
 class ExamRecordSerializer(serializers.ModelSerializer):
     """答题记录序列化器"""
     question = QuestionSerializer(read_only=True)
+
+    class Meta:
+        model = ExamRecord
+        fields = ('id', 'question', 'user_answer', 'is_correct',
+                 'score_gained', 'duration', 'created_at')
+        read_only_fields = ('id', 'is_correct', 'score_gained', 'created_at')
+
+
+class ExamRecordWithAnswerSerializer(serializers.ModelSerializer):
+    """带正确答案的答题记录序列化器（用于错题解析）"""
+    question = QuestionWithAnswerSerializer(read_only=True)
 
     class Meta:
         model = ExamRecord
@@ -50,13 +70,17 @@ class ExamPaperListSerializer(serializers.ModelSerializer):
     """试卷列表序列化器"""
     user_name = serializers.SerializerMethodField()
     question_count = serializers.SerializerMethodField()
+    # 添加分离的用户字段
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True)
+    job_number = serializers.CharField(source='user.job_number', read_only=True)
 
     class Meta:
         model = ExamPaper
-        fields = ('id', 'user_name', 'title', 'status', 'total_score',
-                 'score_obtained', 'generation_reason', 'question_count',
-                 'created_at')
-        read_only_fields = ('id', 'created_at')
+        fields = ('id', 'user_name', 'user_id', 'username', 'job_number',
+                 'title', 'status', 'total_score', 'score_obtained',
+                 'generation_reason', 'question_count', 'created_at')
+        read_only_fields = ('id', 'created_at', 'user_id', 'username', 'job_number')
 
     def get_user_name(self, obj):
         return f"{obj.user.job_number} - {obj.user.get_full_name() or obj.user.username}"
@@ -109,6 +133,34 @@ class ExamGenerationSerializer(serializers.Serializer):
         default=15,
         help_text="题目数量，建议10-20题"
     )
+
+
+class ExamPaperResultSerializer(serializers.ModelSerializer):
+    """考试结果序列化器（包含正确答案，用于错题解析）"""
+    exam_records = ExamRecordWithAnswerSerializer(many=True, read_only=True)
+    user_name = serializers.SerializerMethodField()
+    duration = serializers.SerializerMethodField()  # 添加考试用时字段
+    question_count = serializers.SerializerMethodField()  # 添加题目数量字段
+
+    class Meta:
+        model = ExamPaper
+        fields = ('id', 'user_name', 'title', 'status', 'total_score',
+                 'score_obtained', 'generation_reason', 'time_limit', 'duration',
+                 'started_at', 'completed_at', 'exam_records', 'question_count', 'created_at')
+        read_only_fields = ('id', 'created_at', 'started_at', 'completed_at')
+
+    def get_user_name(self, obj):
+        return f"{obj.user.job_number} - {obj.user.get_full_name() or obj.user.username}"
+
+    def get_duration(self, obj):
+        """计算考试用时（秒）"""
+        if obj.started_at and obj.completed_at:
+            return int((obj.completed_at - obj.started_at).total_seconds())
+        return 0
+
+    def get_question_count(self, obj):
+        """获取题目数量"""
+        return obj.exam_records.count()
 
 
 class ExamSubmissionSerializer(serializers.Serializer):

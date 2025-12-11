@@ -356,12 +356,12 @@ onMounted(() => {
 
 <style scoped>
 .result-container {
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 40px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 30px;
   min-height: 100vh;
   background: #f8f9fb;
 }
@@ -385,6 +385,7 @@ onMounted(() => {
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
   border-radius: 12px;
   transition: all 0.3s ease;
+  padding: 40px;
 }
 
 .result-overview:hover {
@@ -405,8 +406,8 @@ onMounted(() => {
 }
 
 .score-circle {
-  width: 150px;
-  height: 150px;
+  width: 180px;
+  height: 180px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.2);
   display: flex;
@@ -503,15 +504,22 @@ onMounted(() => {
 
 .tag-performance {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 25px;
 }
 
 .performance-item {
   background: #f8f9fa;
-  padding: 20px;
+  padding: 25px;
   border-radius: 8px;
   border-left: 4px solid #409eff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.performance-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 }
 
 .tag-header {
@@ -605,8 +613,8 @@ onMounted(() => {
 .answer-comparison {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 15px;
-  margin-bottom: 15px;
+  gap: 20px;
+  margin-bottom: 20px;
 }
 
 .your-answer,
@@ -640,10 +648,30 @@ onMounted(() => {
   justify-content: center;
 }
 
+/* 平板端适配 */
+@media (max-width: 1024px) {
+  .result-container {
+    padding: 30px;
+  }
+
+  .tag-performance {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .overview-header {
+    gap: 30px;
+  }
+
+  .score-circle {
+    width: 160px;
+    height: 160px;
+  }
+}
+
 /* 移动端适配 */
 @media (max-width: 768px) {
   .result-container {
-    padding: 15px;
+    padding: 20px;
   }
 
   .overview-header {
@@ -675,7 +703,7 @@ onMounted(() => {
 
   .answer-comparison {
     grid-template-columns: 1fr;
-    gap: 10px;
+    gap: 15px;
   }
 
   .action-buttons {
@@ -685,6 +713,18 @@ onMounted(() => {
 
   .action-buttons .el-button {
     width: 100%;
+  }
+
+  .result-overview {
+    padding: 30px 20px;
+  }
+
+  .wrong-item {
+    padding: 15px;
+  }
+
+  .performance-item {
+    padding: 20px;
   }
 }
 </style>

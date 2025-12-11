@@ -5,7 +5,7 @@
         <el-icon size="40" color="#409EFF">
           <User />
         </el-icon>
-        <h2>轨道交通站务人员智能考核系统</h2>
+        <h2>城市轨道交通站务人员智能考核评估系统</h2>
       </div>
 
       <div class="login-subtitle">
@@ -52,30 +52,6 @@
           </el-button>
         </el-form-item>
       </el-form>
-
-      <!-- 演示账号信息 -->
-      <el-divider content-position="left">
-        <span style="color: #909399; font-size: 12px;">演示账号</span>
-      </el-divider>
-
-      <div class="demo-accounts">
-        <div class="account-item">
-          <strong>管理员:</strong> admin / admin123
-          <small>(或工号: ADMIN001)</small>
-        </div>
-        <div class="account-item">
-          <strong>值班站长:</strong> zhangsan / password123
-          <small>(或工号: ST001)</small>
-        </div>
-        <div class="account-item">
-          <strong>站务员:</strong> lisi / password123
-          <small>(或工号: ST002)</small>
-        </div>
-        <div class="account-item">
-          <strong>客运值班员:</strong> wangwu / password123
-          <small>(或工号: ST003)</small>
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -141,16 +117,9 @@ const handleLogin = async () => {
 
 // 页面加载时检查登录状态
 onMounted(() => {
-  
   // 如果已经登录，重定向到工作台
   if (authStore.isLoggedIn) {
     router.push('/')
-  }
-
-  // 自动填充演示账号（开发环境）
-  if (import.meta.env.DEV) {
-    loginForm.job_number = 'admin'
-    loginForm.password = 'admin123'
   }
 })
 </script>
@@ -182,7 +151,7 @@ onMounted(() => {
   padding: 48px;
   border-radius: 16px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-  width: 440px;
+  width: 500px;
   max-width: 90%;
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -208,7 +177,7 @@ onMounted(() => {
 .login-title h2 {
   margin: 0;
   color: #303133;
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 700;
   background: linear-gradient(135deg, #409eff 0%, #667eea 100%);
   -webkit-background-clip: text;
@@ -224,37 +193,6 @@ onMounted(() => {
   line-height: 1.5;
 }
 
-.demo-accounts {
-  margin-top: 28px;
-  padding: 20px;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border-radius: 12px;
-  border: 1px solid #e9ecef;
-}
-
-.account-item {
-  font-size: 13px;
-  color: #606266;
-  margin-bottom: 12px;
-  line-height: 1.5;
-  padding: 8px 12px;
-  background: #fff;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-}
-
-.account-item:hover {
-  background: #f0f9ff;
-  border-color: #409eff;
-  transform: translateX(2px);
-}
-
-.account-item strong {
-  color: #303133;
-  min-width: 100px;
-  display: inline-block;
-  font-weight: 600;
-}
 
 :deep(.el-form-item__content) {
   line-height: normal;

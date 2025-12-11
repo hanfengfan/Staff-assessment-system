@@ -84,7 +84,7 @@
     </div>
 
     <div class="dashboard-content">
-      <!-- 左侧：能力雷达图 -->
+      <!-- 左侧：能力雷达图和统计信息 -->
       <div class="radar-section">
         <el-card class="custom-card">
           <template #header>
@@ -97,12 +97,42 @@
             <div ref="radarChartRef"></div>
           </div>
         </el-card>
+
+        <!-- 新增：能力详情卡片 -->
+        <el-card class="custom-card radar-details-card">
+          <template #header>
+            <div class="card-header">
+              <el-icon><Trophy /></el-icon>
+              <span>能力详情</span>
+            </div>
+          </template>
+          <div class="ability-details">
+            <div class="detail-item">
+              <div class="detail-label">最强能力</div>
+              <div class="detail-value strong">
+                {{ getStrongestAbility() || '暂无数据' }}
+              </div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">待提升能力</div>
+              <div class="detail-value weak">
+                {{ getWeakestAbility() || '暂无数据' }}
+              </div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">平均能力值</div>
+              <div class="detail-value average">
+                {{ getAverageAbility() || 0 }}分
+              </div>
+            </div>
+          </div>
+        </el-card>
       </div>
 
       <!-- 右侧：操作区域 -->
       <div class="action-section">
-        <!-- 开始考试按钮 -->
-        <el-card class="custom-card">
+        <!-- 开始考试按钮 - 仅普通用户可见 -->
+        <el-card class="custom-card" v-if="!isAdmin">
           <template #header>
             <div class="card-header">
               <el-icon><Document /></el-icon>
@@ -164,6 +194,17 @@
             <el-button
               type="primary"
               size="large"
+              :loading="generatingExam"
+              :disabled="generatingExam"
+              @click="handleGenerateExam"
+              class="admin-btn start-exam-btn"
+            >
+              <el-icon><Promotion /></el-icon>
+              {{ generatingExam ? '生成试卷中...' : '开始每日考核' }}
+            </el-button>
+            <el-button
+              type="success"
+              size="large"
               @click="goToAdminDashboard"
               class="admin-btn"
             >
@@ -179,33 +220,51 @@
             <div class="card-header">
               <el-icon><Clock /></el-icon>
               <span>最近考试记录</span>
+              <el-tag type="info" size="small" v-if="totalExams > 0">
+                共 {{ totalExams }} 条记录
+              </el-tag>
             </div>
           </template>
           <div v-if="recentExams.length === 0" class="empty-state">
             <el-empty description="暂无考试记录" />
           </div>
-          <div v-else class="exam-list">
-            <div
-              v-for="exam in recentExams"
-              :key="exam.id"
-              class="exam-item"
-              @click="handleViewExamResult(exam.id)"
-            >
-              <div class="exam-info">
-                <div class="exam-title">{{ exam.title }}</div>
-                <div class="exam-meta">
-                  <el-tag :type="getStatusType(exam.status)" size="small">
-                    {{ getStatusText(exam.status) }}
-                  </el-tag>
-                  <span class="exam-date">
-                    {{ formatDate(exam.created_at) }}
-                  </span>
+          <div v-else>
+            <div class="exam-list">
+              <div
+                v-for="exam in recentExams"
+                :key="exam.id"
+                class="exam-item"
+                @click="handleViewExamResult(exam.id)"
+              >
+                <div class="exam-info">
+                  <div class="exam-title">{{ exam.title }}</div>
+                  <div class="exam-meta">
+                    <el-tag :type="getStatusType(exam.status)" size="small">
+                      {{ getStatusText(exam.status) }}
+                    </el-tag>
+                    <span class="exam-date">
+                      {{ formatDate(exam.created_at) }}
+                    </span>
+                  </div>
+                </div>
+                <div class="exam-score" v-if="exam.status === 'completed'">
+                  <div class="score-value">{{ exam.score_obtained?.toFixed(1) || 0 }}</div>
+                  <div class="score-total">/ {{ exam.total_score || 100 }}</div>
                 </div>
               </div>
-              <div class="exam-score" v-if="exam.status === 'completed'">
-                <div class="score-value">{{ exam.score_obtained?.toFixed(1) || 0 }}</div>
-                <div class="score-total">/ {{ exam.total_score || 100 }}</div>
-              </div>
+            </div>
+
+            <!-- 分页组件 -->
+            <div class="pagination-container" v-if="examPagination.total > pageSize">
+              <el-pagination
+                v-model:current-page="examPagination.current"
+                :page-size="pageSize"
+                :total="examPagination.total"
+                layout="prev, pager, next, jumper"
+                @current-change="handlePageChange"
+                :background="true"
+                :hide-on-single-page="true"
+              />
             </div>
           </div>
         </el-card>
@@ -255,25 +314,42 @@ const recommendations = ref([])
 const userList = ref([])
 const selectedUserId = ref(null)
 
-// 用户选择处理函数
-const handleUserChange = (userId) => {
-  selectedUserId.value = userId
-  fetchUserData(userId)
-}
+// 分页相关数据
+const currentPage = ref(1)
+const pageSize = ref(5)
+const totalExams = ref(0)
+const examPagination = ref({
+  current: 1,
+  pageSize: 5,
+  total: 0
+})
 
-// 获取指定用户数据
-const fetchUserData = async (userId = null) => {
+// 用户选择处理函数
+const handleUserChange = async (userId) => {
+  selectedUserId.value = userId
   loading.value = true
   try {
-    const [radarResponse, summaryResponse, recommendationsResponse] = await Promise.all([
+    // 重置分页到第一页
+    examPagination.value.current = 1
+
+    // 并行获取所有数据
+    const [radarResponse, summaryResponse, recommendationsResponse, examData] = await Promise.all([
       getRadarData(userId),
       getCapabilitySummary(userId),
-      getRecommendations()
+      getRecommendations(),
+      fetchExamData(1, pageSize.value)
     ])
 
     radarData.value = Array.isArray(radarResponse) ? radarResponse : []
     capabilitySummary.value = summaryResponse || {}
     recommendations.value = Array.isArray(recommendationsResponse?.recommendations) ? recommendationsResponse.recommendations : []
+    recentExams.value = Array.isArray(examData?.results) ? examData.results : []
+    totalExams.value = examData?.count || 0
+    examPagination.value = {
+      current: 1,
+      pageSize: pageSize.value,
+      total: examData?.count || 0
+    }
 
     // 渲染雷达图
     nextTick(() => {
@@ -286,8 +362,26 @@ const fetchUserData = async (userId = null) => {
     radarData.value = []
     capabilitySummary.value = {}
     recommendations.value = []
+    recentExams.value = []
+    totalExams.value = 0
   } finally {
     loading.value = false
+  }
+}
+
+// 获取考试数据
+const fetchExamData = async (page = 1, pageSize = 5) => {
+  try {
+    const response = await getExamList({
+      page,
+      page_size: pageSize,
+      user_id: selectedUserId.value
+    })
+
+    return response
+  } catch (error) {
+    console.error('获取考试数据失败:', error)
+    return { results: [], count: 0 }
   }
 }
 
@@ -296,9 +390,12 @@ const fetchDashboardData = async () => {
   loading.value = true
 
   try {
+    // 获取考试数据（第一页）
+    const examsResponse = await fetchExamData(1, pageSize.value)
+
     // 根据用户身份获取不同数据
     const promises = [
-      getExamList({ page_size: 5, user_id: selectedUserId.value }),
+      Promise.resolve(examsResponse),
       getRadarData(selectedUserId.value),
       getCapabilitySummary(selectedUserId.value),
       getRecommendations()
@@ -314,10 +411,16 @@ const fetchDashboardData = async () => {
       promises.push(Promise.resolve([]))
     }
 
-    const [examsResponse, radarResponse, summaryResponse, recommendationsResponse, usersResponse] = await Promise.all(promises)
+    const [examData, radarResponse, summaryResponse, recommendationsResponse, usersResponse] = await Promise.all(promises)
 
     // 确保数据结构正确，防止 undefined 错误
-    recentExams.value = Array.isArray(examsResponse?.results) ? examsResponse.results : []
+    recentExams.value = Array.isArray(examData?.results) ? examData.results : []
+    totalExams.value = examData?.count || 0
+    examPagination.value = {
+      current: 1,
+      pageSize: pageSize.value,
+      total: examData?.count || 0
+    }
     radarData.value = Array.isArray(radarResponse) ? radarResponse : []
     capabilitySummary.value = summaryResponse || {}
     recommendations.value = Array.isArray(recommendationsResponse?.recommendations) ? recommendationsResponse.recommendations : []
@@ -337,6 +440,7 @@ const fetchDashboardData = async () => {
 
     // 发生错误时设置默认值，防止页面崩溃
     recentExams.value = []
+    totalExams.value = 0
     radarData.value = []
     capabilitySummary.value = {}
     recommendations.value = []
@@ -369,13 +473,13 @@ const renderRadarChart = () => {
         name: item?.tag || '未知',
         max: 100
       })),
-      radius: '65%'
+      radius: '70%'
     },
     series: [{
       name: '能力水平',
       type: 'radar',
       data: [{
-        value: validRadarData.map(item => item?.score || 0),
+        value: validRadarData.map(item => Math.round(item?.score || 0)),
         name: '个人能力',
         areaStyle: {
           color: 'rgba(64, 158, 255, 0.2)'
@@ -468,9 +572,47 @@ const handleViewExamResult = (examId) => {
   }
 }
 
+// 处理分页变化
+const handlePageChange = async (page) => {
+  loading.value = true
+  try {
+    const examData = await fetchExamData(page, pageSize.value)
+    recentExams.value = Array.isArray(examData?.results) ? examData.results : []
+    examPagination.value.current = page
+  } catch (error) {
+    console.error('获取分页数据失败:', error)
+    ElMessage.error('获取分页数据失败')
+  } finally {
+    loading.value = false
+  }
+}
+
 // 进入管理员控制台
 const goToAdminDashboard = async () => {
   router.push('/admin')
+}
+
+// 能力详情相关方法
+const getStrongestAbility = () => {
+  if (!radarData.value || radarData.value.length === 0) return null
+  const strongest = radarData.value.reduce((prev, current) =>
+    (prev.score || 0) > (current.score || 0) ? prev : current
+  )
+  return `${strongest.tag} (${Math.round(strongest.score || 0)}分)`
+}
+
+const getWeakestAbility = () => {
+  if (!radarData.value || radarData.value.length === 0) return null
+  const weakest = radarData.value.reduce((prev, current) =>
+    (prev.score || 0) < (current.score || 0) ? prev : current
+  )
+  return `${weakest.tag} (${Math.round(weakest.score || 0)}分)`
+}
+
+const getAverageAbility = () => {
+  if (!radarData.value || radarData.value.length === 0) return 0
+  const total = radarData.value.reduce((sum, item) => sum + (item.score || 0), 0)
+  return Math.round(total / radarData.value.length)
 }
 
 // 工具函数
@@ -523,8 +665,8 @@ onUnmounted(() => {
 
 <style scoped>
 .dashboard-container {
-  padding: 24px;
-  max-width: 1600px;
+  padding: 40px;
+  max-width: 1800px;
   margin: 0 auto;
   min-height: 100vh;
   background: #f5f7fa;
@@ -559,20 +701,21 @@ onUnmounted(() => {
 
 .stats-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 24px;
-  margin-bottom: 32px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 30px;
+  margin-bottom: 40px;
 }
 
 .stat-card {
   background: #fff;
-  padding: 30px;
+  padding: 35px 30px;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   display: flex;
   align-items: center;
   gap: 24px;
   transition: all 0.3s ease;
+  min-height: 120px;
 }
 
 .stat-card:hover {
@@ -598,17 +741,17 @@ onUnmounted(() => {
 }
 
 .user-selector {
-  grid-column: span 2;
   margin-bottom: 24px;
 }
 
 .dashboard-content {
   display: grid;
   grid-template-columns: 1.2fr 0.8fr;
-  gap: 28px;
+  gap: 40px;
+  width: 100%;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1024px) {
   .dashboard-content {
     grid-template-columns: 1fr;
   }
@@ -616,6 +759,59 @@ onUnmounted(() => {
 
 .radar-section {
   grid-row: span 1;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.radar-details-card {
+  height: fit-content;
+}
+
+.ability-details {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.detail-item:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  font-size: 14px;
+  color: #606266;
+  font-weight: 500;
+}
+
+.detail-value {
+  font-size: 16px;
+  font-weight: bold;
+  padding: 4px 12px;
+  border-radius: 6px;
+}
+
+.detail-value.strong {
+  color: #67c23a;
+  background: #f0f9ff;
+}
+
+.detail-value.weak {
+  color: #e6a23c;
+  background: #fdf6ec;
+}
+
+.detail-value.average {
+  color: #409eff;
+  background: #ecf5ff;
 }
 
 .action-section {
@@ -634,13 +830,13 @@ onUnmounted(() => {
 
 .radar-container {
   width: 100%;
-  height: 450px;
+  height: 500px;
   display: flex;
   justify-content: center;
   align-items: center;
   background: #fff;
-  border-radius: 8px;
-  padding: 20px;
+  border-radius: 4px;
+  padding: 0px;
 }
 
 .radar-container > div {
@@ -659,6 +855,50 @@ onUnmounted(() => {
   font-size: 18px;
   font-weight: bold;
   border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.start-exam-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(64, 158, 255, 0.3);
+}
+
+.admin-card {
+  border: 2px solid #f0f0f0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.admin-card:hover {
+  border-color: #409eff;
+  box-shadow: 0 8px 30px rgba(64, 158, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+.admin-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-btn {
+  width: 100%;
+  height: 60px;
+  font-size: 18px;
+  font-weight: bold;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0 20px;
+}
+
+.admin-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
 .recommendations {
@@ -732,10 +972,25 @@ onUnmounted(() => {
   padding: 40px 0;
 }
 
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  padding-top: 20px;
+  border-top: 1px solid #f0f0f0;
+  margin-top: 20px;
+}
+
+/* 平板端适配 */
+@media (max-width: 1024px) {
+  .stats-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 /* 移动端适配 */
 @media (max-width: 768px) {
   .dashboard-container {
-    padding: 15px;
+    padding: 20px;
   }
 
   .user-info-card {
@@ -750,6 +1005,7 @@ onUnmounted(() => {
 
   .stats-cards {
     grid-template-columns: 1fr;
+    gap: 20px;
   }
 
   .stat-card {
@@ -763,6 +1019,15 @@ onUnmounted(() => {
   .start-exam-btn {
     height: 50px;
     font-size: 16px;
+  }
+
+  .dashboard-content {
+    gap: 20px;
+  }
+
+  .radar-container {
+    height: 350px;
+    padding: 10px;
   }
 }
 </style>
