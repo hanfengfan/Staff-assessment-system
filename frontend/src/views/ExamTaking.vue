@@ -109,7 +109,7 @@
       <div
         v-for="(question, index) in (examQuestions || [])"
         :key="question?.id || index"
-        v-show="index === currentQuestionIndex"
+        v-show="index === currentQuestionIndex && question"
         class="question-card"
       >
         <div class="question-header">
@@ -141,7 +141,8 @@
 
         <!-- 选项区域 -->
         <div class="options-area">
-          <ul class="options-list">
+          <!-- 客观题选项 -->
+          <ul v-if="question.question_type !== 'subjective' && question.options && question.options.length > 0" class="options-list">
             <li
               v-for="option in question.options"
               :key="option.key"
@@ -153,6 +154,35 @@
               <span class="option-text">{{ option.text }}</span>
             </li>
           </ul>
+
+          <!-- 客观题无选项的提示 -->
+          <div v-else-if="question.question_type !== 'subjective'" class="no-options">
+            <el-alert
+              title="该题目暂无选项"
+              type="warning"
+              :closable="false"
+              show-icon
+            />
+          </div>
+
+          <!-- 主观题文本输入 -->
+          <div v-else class="subjective-answer">
+            <el-input
+              :model-value="getAnswerForQuestion(question.id)"
+              @input="(value) => setAnswerForQuestion(question.id, value)"
+              type="textarea"
+              :rows="6"
+              :placeholder="(question.options && question.options.length > 0 && question.options[0].text) ? question.options[0].text : '请输入你的答案...'"
+              maxlength="2000"
+              show-word-limit
+              class="subjective-textarea"
+              @update:model-value="handleSubjectiveInput(question.id)"
+            />
+            <div class="answer-hint">
+              <el-icon><InfoFilled /></el-icon>
+              <span>请详细阐述你的观点，答案将自动评分</span>
+            </div>
+          </div>
         </div>
 
         <!-- 题目导航按钮 -->
@@ -185,7 +215,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Document, Clock, List, Check, Close, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
+import { Document, Clock, List, Check, Close, ArrowLeft, ArrowRight, InfoFilled } from '@element-plus/icons-vue'
 import { useExamStore } from '@/stores/exam'
 import { generateExam, startExam, submitExam, getExamDetail } from '@/api/exam'
 import { useAuthStore } from '@/stores/auth'
@@ -224,11 +254,22 @@ const allQuestionsAnswered = computed(() => {
   return unansweredQuestions.value.length === 0
 })
 
+// 获取特定题目的答案
+const getAnswerForQuestion = (questionId) => {
+  return (userAnswers.value || {})[questionId] || ''
+}
+
+// 设置特定题目的答案（用于主观题）
+const setAnswerForQuestion = (questionId, value) => {
+  saveAnswer(questionId, value)
+}
+
 // 初始化考试
 const initExam = async () => {
   loading.value = true
 
   try {
+    console.log('开始初始化考试...')
     let examData
 
     if (route.params.id === 'generate') {
@@ -237,9 +278,9 @@ const initExam = async () => {
       }
 
       isGenerating.value = true
+      // 调用生成考试API（题目数量由后端配置控制）
       const response = await generateExam({
-        reason: 'daily_practice',
-        question_count: 15
+        reason: 'daily_practice'
       })
       examData = response
 
@@ -340,12 +381,19 @@ const isOptionSelected = (questionId, optionKey) => {
   }
 }
 
+// 处理主观题输入
+const handleSubjectiveInput = (questionId) => {
+  // 主观题答案已经在v-model中自动更新，这里可以添加额外的处理逻辑
+  // 比如自动保存草稿等
+}
+
 // 获取题型颜色
 const getTypeColor = (type) => {
   const colorMap = {
     'single': 'primary',
     'multiple': 'warning',
-    'true_false': 'success'
+    'true_false': 'success',
+    'subjective': 'danger'
   }
   return colorMap[type] || 'info'
 }
@@ -355,7 +403,8 @@ const getTypeText = (type) => {
   const textMap = {
     'single': '单选题',
     'multiple': '多选题',
-    'true_false': '判断题'
+    'true_false': '判断题',
+    'subjective': '主观题'
   }
   return textMap[type] || '未知类型'
 }
@@ -1201,5 +1250,36 @@ onUnmounted(() => {
   .exam-header {
     padding: 20px;
   }
+}
+
+.subjective-answer {
+  width: 100%;
+
+  .subjective-textarea {
+    margin-bottom: 10px;
+
+    :deep(.el-textarea__inner) {
+      font-size: 16px;
+      line-height: 1.6;
+      resize: vertical;
+    }
+  }
+
+  .answer-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #909399;
+
+    .el-icon {
+      font-size: 16px;
+    }
+  }
+}
+
+.no-options {
+  padding: 20px;
+  text-align: center;
 }
 </style>

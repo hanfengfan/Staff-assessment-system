@@ -4,9 +4,9 @@ from .models import Tag, Question, ExamPaper, ExamRecord
 
 @admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'description', 'created_at')
+    list_display = ('name', 'category', 'created_at')
     list_filter = ('category', 'created_at')
-    search_fields = ('name', 'description')
+    search_fields = ('name',)
     ordering = ('category', 'name')
 
 
@@ -21,6 +21,30 @@ class QuestionAdmin(admin.ModelAdmin):
     def content_short(self, obj):
         return obj.content[:50] + '...' if len(obj.content) > 50 else obj.content
     content_short.short_description = '题目内容'
+
+    fieldsets = (
+        ('基本信息', {
+            'fields': ('content', 'question_type', 'difficulty', 'is_active')
+        }),
+        ('答案设置', {
+            'fields': ('options', 'correct_answer', 'explanation'),
+            'description': '注意：主观题的options字段可以为空，或在其中填写答题提示'
+        }),
+        ('标签', {
+            'fields': ('tags',)
+        }),
+        ('时间信息', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name == 'options':
+            kwargs['help_text'] = '客观题：JSON格式的选项列表，如[{"key": "A", "text": "选项A"}]；主观题：可留空或填写答题提示'
+        if db_field.name == 'correct_answer':
+            kwargs['help_text'] = '客观题：正确答案；主观题：参考答案或评分标准'
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
 
 
 class ExamRecordInline(admin.TabularInline):

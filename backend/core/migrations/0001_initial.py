@@ -45,7 +45,6 @@ class Migration(migrations.Migration):
                 ('updated_at', models.DateTimeField(auto_now=True, verbose_name='更新时间')),
                 ('name', models.CharField(max_length=50, unique=True, verbose_name='标签名称')),
                 ('category', models.CharField(choices=[('position', '岗位类'), ('emergency', '应急类'), ('comprehensive', '综合能力类')], default='position', max_length=20, verbose_name='标签分类')),
-                ('description', models.TextField(blank=True, verbose_name='标签描述')),
             ],
             options={
                 'verbose_name': '标签',

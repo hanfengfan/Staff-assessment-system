@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  # === Django 后端服务 ===
+  backend:
+    build: ./backend             # 告诉它去 backend 目录找 Dockerfile
+    container_name: my_django_container
+    restart: always
+    ports:
+      # 【关键】只允许本机访问 8081，防止外网直接穿透，保护已有项目
+      - "127.0.0.1:8081:8000"
+    volumes:
+      - ./backend:/app           # 挂载代码，方便后续修改代码不用重做镜像
+
+  # === Vue 前端服务 ===
+  frontend:
+    build: ./frontend            # 告诉它去 frontend 目录找 Dockerfile
+    container_name: my_vue_container
+    restart: always
+    ports:
+      # 【关键】只允许本机访问 8082
+      - "127.0.0.1:8082:80"
+    depends_on:
+      - backend                  # 确保后端先启动

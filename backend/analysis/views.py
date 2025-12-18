@@ -69,15 +69,17 @@ def radar_chart_data(request):
         # 普通用户查看自己的数据
         user = request.user
 
-    # 获取用户的能力画像数据
+    # 获取用户的能力画像数据（排除role标签）
     profiles = CapabilityProfile.objects.filter(
         user=user
-    ).select_related('tag')
+    ).select_related('tag').exclude(
+        tag__category='role'  # 排除role标签
+    )
 
-    # 如果用户没有能力画像数据，为所有标签创建默认值
+    # 如果用户没有能力画像数据，为所有能力标签创建默认值
     if not profiles.exists():
-        # 获取所有活跃标签
-        all_tags = Tag.objects.all()
+        # 获取所有非role类型的活跃标签
+        all_tags = Tag.objects.exclude(category='role')
         data = [
             {'tag': tag.name, 'score': 50.0}  # 默认中等水平
             for tag in all_tags
@@ -119,14 +121,17 @@ def capability_summary(request):
         # 普通用户查看自己的数据
         user = request.user
 
-    # 计算总体平均分
-    profiles = CapabilityProfile.objects.filter(user=user)
+    # 计算总体平均分（排除role标签）
+    profiles = CapabilityProfile.objects.filter(
+        user=user
+    ).exclude(tag__category='role')  # 排除role标签
+
     if profiles.exists():
         overall_score = profiles.aggregate(avg_score=Avg('mastery_level'))['avg_score']
     else:
         overall_score = 50.0
 
-    # 获取弱项和强项标签
+    # 获取弱项和强项标签（排除role标签）
     weak_threshold = 60.0
     strong_threshold = 80.0
 
@@ -210,10 +215,14 @@ def trend_data(request):
     for paper in completed_papers:
         date_key = paper.completed_at.date()
 
-        # 统计各标签在该次考试中的表现
+        # 统计各标签在该次考试中的表现（排除role标签）
         tag_scores = {}
         for record in paper.exam_records.all():
             for tag in record.question.tags.all():
+                # 排除role标签
+                if tag.category == 'role':
+                    continue
+
                 if tag not in tag_scores:
                     tag_scores[tag] = {'correct': 0, 'total': 0}
 
@@ -265,11 +274,13 @@ def weak_tag_recommendations(request):
     """获取弱项标签的学习建议"""
     user = request.user
 
-    # 获取用户的弱项标签
+    # 获取用户的弱项标签（排除role标签）
     weak_threshold = 60.0
     weak_profiles = CapabilityProfile.objects.filter(
         user=user,
         mastery_level__lt=weak_threshold
+    ).exclude(
+        tag__category='role'  # 排除role标签
     ).select_related('tag').order_by('mastery_level')
 
     recommendations = []

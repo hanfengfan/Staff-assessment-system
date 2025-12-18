@@ -16,9 +16,10 @@ class BaseTimestampedModel(models.Model):
 class Tag(BaseTimestampedModel):
     """标签模型，用于题目的多维度标注"""
     class Category(models.TextChoices):
-        POSITION = 'position', '岗位类'
-        EMERGENCY = 'emergency', '应急类'
-        COMPREHENSIVE = 'comprehensive', '综合能力类'
+        ROLE = 'role', '职位类'
+        POSITION = 'position', '专业能力类'
+        EMERGENCY = 'emergency', '专业能力类'
+        COMPREHENSIVE = 'comprehensive', '专业能力类'
 
     name = models.CharField(max_length=50, unique=True, verbose_name='标签名称')
     category = models.CharField(
@@ -27,7 +28,6 @@ class Tag(BaseTimestampedModel):
         default=Category.POSITION,
         verbose_name='标签分类'
     )
-    description = models.TextField(blank=True, verbose_name='标签描述')
 
     class Meta:
         verbose_name = '标签'
@@ -45,6 +45,7 @@ class Question(BaseTimestampedModel):
         SINGLE = 'single', '单选题'
         MULTIPLE = 'multiple', '多选题'
         TRUE_FALSE = 'true_false', '判断题'
+        SUBJECTIVE = 'subjective', '主观题'
 
     content = models.TextField(verbose_name='题目题干')
     question_type = models.CharField(
@@ -55,12 +56,13 @@ class Question(BaseTimestampedModel):
     )
     options = models.JSONField(
         verbose_name='选项列表',
-        help_text='JSON格式，示例: [{"key": "A", "text": "选项内容"}]'
+        help_text='JSON格式，示例: [{"key": "A", "text": "选项内容"}]，主观题可为空或填写答题提示',
+        null=True,
+        blank=True
     )
-    correct_answer = models.CharField(
-        max_length=50,
-        verbose_name='正确答案',
-        help_text='单选题填字母，多选题用逗号分隔，判断题填True/False'
+    correct_answer = models.TextField(
+        verbose_name='正确答案/参考答案',
+        help_text='单选题填字母，多选题用逗号分隔，判断题填True/False，主观题填写参考答案或评分标准'
     )
     tags = models.ManyToManyField(
         Tag,
@@ -153,6 +155,7 @@ class ExamRecord(BaseTimestampedModel):
     )
     is_correct = models.BooleanField(null=True, blank=True, verbose_name='是否正确')
     score_gained = models.FloatField(default=0.0, verbose_name='得分')
+    ai_score = models.FloatField(null=True, blank=True, verbose_name='AI评分(0-100)')
     duration = models.PositiveIntegerField(default=0, verbose_name='答题耗时（秒）')
 
     class Meta:

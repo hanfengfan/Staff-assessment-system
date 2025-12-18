@@ -121,7 +121,18 @@
             <div class="answer-comparison">
               <div class="your-answer">
                 <span class="answer-label">您的答案:</span>
-                <el-tag type="danger">{{ formatAnswer(item.your_answer, item.question_type) }}</el-tag>
+                <div v-if="item.question_type === 'subjective' && item.ai_score !== null">
+                  <el-tag type="warning">得分: {{ item.ai_score }}/100</el-tag>
+                  <div class="subjective-score">
+                    <el-progress
+                      :percentage="item.ai_score"
+                      :color="getScoreColor(item.ai_score)"
+                      :show-text="false"
+                      :stroke-width="8"
+                    />
+                  </div>
+                </div>
+                <el-tag v-else type="danger">{{ formatAnswer(item.your_answer, item.question_type) }}</el-tag>
               </div>
               <div class="correct-answer">
                 <span class="answer-label">正确答案:</span>
@@ -244,20 +255,26 @@ const wrongAnswers = computed(() => {
   let questionIndex = 0
 
   examResult.value.exam_records.forEach(record => {
-    if (record.is_correct) {
-      questionIndex++
-    } else {
+    questionIndex++
+
+    // 主观题：只有AI评分低于60分才算错题
+    // 客观题：is_correct为false就算错题
+    const isWrong = record.question.question_type === 'subjective'
+      ? record.ai_score < 60
+      : !record.is_correct
+
+    if (isWrong) {
       wrong.push({
         question_id: record.question.id,
-        question_index: questionIndex,
+        question_index: questionIndex - 1,
         question_content: record.question.content,
         your_answer: record.user_answer,
         correct_answer: record.question.correct_answer,
         question_type: record.question.question_type,
         explanation: record.question.explanation || '需要加强相关知识学习。',
-        accuracy: 0
+        accuracy: 0,
+        ai_score: record.ai_score // 添加AI评分
       })
-      questionIndex++
     }
   })
 
@@ -306,6 +323,13 @@ const getPerformanceType = (accuracy) => {
   if (accuracy >= 80) return 'success'
   if (accuracy >= 60) return 'warning'
   return 'danger'
+}
+
+// 获取分数颜色（用于主观题评分条）
+const getScoreColor = (score) => {
+  if (score >= 80) return '#67c23a'  // 绿色
+  if (score >= 60) return '#e6a23c'  // 橙色
+  return '#f56c6c'  // 红色
 }
 
 // 格式化答案显示
@@ -622,6 +646,11 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.subjective-score {
+  margin-top: 8px;
+  width: 200px;
 }
 
 .answer-label {

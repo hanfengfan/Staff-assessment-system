@@ -519,10 +519,9 @@ const handleGenerateExam = async () => {
 
     generatingExam.value = true
 
-    // 调用生成考试API
+    // 调用生成考试API（题目数量由后端配置控制）
     const response = await generateExam({
-      reason: 'daily_practice',
-      question_count: 15
+      reason: 'daily_practice'
     })
 
     if (response.id) {

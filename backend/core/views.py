@@ -107,25 +107,27 @@ class ExamPaperDetailView(generics.RetrieveUpdateDestroyAPIView):
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def generate_exam(request):
-    """生成智能试卷"""
+    """生成智能试卷（题目数量由后端配置控制）"""
     try:
         # 获取前端参数
         reason = request.data.get('reason', 'daily_practice')
-        question_count = request.data.get('question_count', None)
 
-        # 调用服务生成试卷
+        # 调用服务生成试卷，题目数量使用后端配置
         service = ExamGenerationService()
         exam_paper = service.generate_exam(
             user_id=request.user.id,
-            reason=reason,
-            question_count=question_count
+            reason=reason
+            # 不再接受 question_count 参数，完全使用后端配置
         )
+
+        actual_question_count = exam_paper.exam_records.count()
 
         return Response({
             'id': exam_paper.id,
             'title': exam_paper.title,
             'time_limit': exam_paper.time_limit,
-            'question_count': exam_paper.exam_records.count(),
+            'question_count': actual_question_count,
+            'total_score': exam_paper.total_score,
             'status': exam_paper.get_status_display()
         }, status=status.HTTP_201_CREATED)
 
@@ -159,16 +161,35 @@ def start_exam(request, paper_id):
 
         print(f"实际获取的答题记录数量: {exam_records.count()}")
 
+        # 获取试卷用户的职位信息，用于过滤role标签
+        user_position = exam_paper.user.position
+        is_admin = user_position == '系统管理员'
+
         for record in exam_records:
             question = record.question
             print(f"处理题目: {question.id}, 类型: {question.question_type}")
+
+            # 过滤标签：对于非管理员，只显示相关的role标签
+            filtered_tags = []
+            for tag in question.tags.all():
+                if tag.category != 'role':
+                    # 非role标签直接显示
+                    filtered_tags.append({'id': tag.id, 'name': tag.name})
+                elif is_admin:
+                    # 管理员可以看到所有role标签
+                    filtered_tags.append({'id': tag.id, 'name': tag.name})
+                else:
+                    # 非管理员用户，只显示与自己职位相关的role标签
+                    if tag.name == user_position:
+                        filtered_tags.append({'id': tag.id, 'name': tag.name})
+
             questions_data.append({
                 'id': question.id,  # 使用id而不是question_id以保持一致性
                 'content': question.content,
                 'question_type': question.question_type,
                 'options': question.options,
                 'difficulty': question.difficulty,
-                'tags': [{'id': tag.id, 'name': tag.name} for tag in question.tags.all()]
+                'tags': filtered_tags
             })
 
         print(f"准备返回的题目数量: {len(questions_data)}")

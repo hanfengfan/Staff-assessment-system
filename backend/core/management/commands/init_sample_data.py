@@ -83,8 +83,7 @@ class Command(BaseCommand):
             {'name': '票务处理', 'category': 'position', 'description': '包括售票、退票、改签等票务相关操作'},
             {'name': '乘客服务', 'category': 'position', 'description': '乘客咨询、引导、特殊乘客服务等'},
             {'name': '安全检查', 'category': 'position', 'description': '行李检查、安全巡查、危险品识别'},
-            {'name': '应急处理', 'category': 'emergency', 'description': '突发事件应急响应和处理'},
-            {'name': '火灾应急', 'category': 'emergency', 'description': '火灾预防、报警、疏散和初期扑救'},
+            {'name': '应急处理', 'category': 'emergency', 'description': '包括火灾预防、报警、疏散、初期扑救及其他突发事件应急响应和处理'},
             {'name': '设备故障', 'category': 'emergency', 'description': '站内设备故障处理和报修流程'},
             {'name': '沟通协调', 'category': 'comprehensive', 'description': '与各部门、同事间的沟通协调能力'},
             {'name': '规章制度', 'category': 'comprehensive', 'description': '铁路相关法律法规和站内管理制度'},
@@ -150,7 +149,7 @@ class Command(BaseCommand):
                 'correct_answer': 'B',
                 'difficulty': 1,
                 'explanation': '火灾发生时，保障乘客生命安全是第一要务，应立即组织乘客有序疏散撤离。',
-                'tags': ['火灾应急', '应急处理']
+                'tags': ['应急处理']
             },
             {
                 'content': '售票系统出现故障时，应当采取的措施是什么？',

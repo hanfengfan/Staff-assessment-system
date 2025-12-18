@@ -163,13 +163,39 @@ ASSESSMENT_SETTINGS = {
     'CAPABILITY_UPDATE_WEIGHT_OLD': 0.7,
     'CAPABILITY_UPDATE_WEIGHT_NEW': 0.3,
     # 考试题目数量配置
-    'DEFAULT_EXAM_QUESTION_COUNT': 15,
+    'DEFAULT_EXAM_QUESTION_COUNT': 10,
     # 智能组卷策略比例
     'WEAK_TAG_RATIO': 0.5,    # 弱项强化
-    'RANDOM_RATIO': 0.3,      # 基础巩固
-    'NEW_QUESTION_RATIO': 0.2, # 新题探索
+    'NEW_QUESTION_RATIO': 0.5, # 新题探索
     # 能力阈值
     'WEAK_CAPABILITY_THRESHOLD': 60,
     # 排除时间（小时）
-    'EXCLUDE_RECENT_HOURS': 24,
+    'EXCLUDE_RECENT_HOURS': 12,
+}
+
+# AI 评分配置
+AI_GRADING_SETTINGS = {
+    'ENABLED': True,  # 是否启用AI评分
+    'API_KEY': 'sk-867a6b9708a24e52ac2ddfea05bd29b9',  # AI服务的API密钥，请填写实际的API密钥
+    'MODEL_NAME': 'deepseek-chat',  # 使用的模型名称
+    'BASE_URL': 'https://api.deepseek.com/v1',  # API基础URL
+    'MAX_RETRIES': 3,  # 最大重试次数
+    'TIMEOUT': 10,  # 请求超时时间（秒）
+    'PROMPT_TEMPLATE': """
+请根据以下信息对主观题进行评分：
+
+题目：{question}
+参考答案：{reference_answer}
+用户答案：{user_answer}
+
+请根据用户答案与参考答案的匹配程度给出0-100分的评分，其中：
+- 90-100分：答案完整准确，完全符合要求
+- 80-89分：答案基本正确，稍有不足
+- 70-79分：答案部分正确，有一定理解
+- 60-69分：答案不够准确，但有一定相关性
+- 0-59分：答案错误或完全不符合要求
+
+请只返回一个0-100之间的数字分数，不要返回其他文字。
+""",
+    'FALLBACK_SCORE': 60,  # AI调用失败时的默认分数
 }

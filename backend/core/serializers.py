@@ -8,7 +8,7 @@ class TagSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Tag
-        fields = ('id', 'name', 'category', 'description', 'questions_count', 'created_at')
+        fields = ('id', 'name', 'category', 'questions_count', 'created_at')
         read_only_fields = ('id', 'created_at')
 
     def get_questions_count(self, obj):
@@ -17,13 +17,37 @@ class TagSerializer(serializers.ModelSerializer):
 
 class QuestionSerializer(serializers.ModelSerializer):
     """题目序列化器（不包含正确答案）"""
-    tags = TagSerializer(many=True, read_only=True)
+    tags = serializers.SerializerMethodField()
 
     class Meta:
         model = Question
         fields = ('id', 'content', 'question_type', 'options', 'tags',
                  'difficulty', 'created_at')
         read_only_fields = ('id', 'created_at')
+
+    def get_tags(self, obj):
+        """根据用户身份过滤标签"""
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return [{'id': tag.id, 'name': tag.name} for tag in obj.tags.all()]
+
+        user_position = request.user.position
+        is_admin = user_position == '系统管理员'
+
+        filtered_tags = []
+        for tag in obj.tags.all():
+            if tag.category != 'role':
+                # 非role标签直接显示
+                filtered_tags.append({'id': tag.id, 'name': tag.name})
+            elif is_admin:
+                # 管理员可以看到所有role标签
+                filtered_tags.append({'id': tag.id, 'name': tag.name})
+            else:
+                # 非管理员用户，只显示与自己职位相关的role标签
+                if tag.name == user_position:
+                    filtered_tags.append({'id': tag.id, 'name': tag.name})
+
+        return filtered_tags
 
 
 class QuestionDetailSerializer(QuestionSerializer):
@@ -62,8 +86,8 @@ class ExamRecordWithAnswerSerializer(serializers.ModelSerializer):
     class Meta:
         model = ExamRecord
         fields = ('id', 'question', 'user_answer', 'is_correct',
-                 'score_gained', 'duration', 'created_at')
-        read_only_fields = ('id', 'is_correct', 'score_gained', 'created_at')
+                 'score_gained', 'ai_score', 'duration', 'created_at')
+        read_only_fields = ('id', 'is_correct', 'score_gained', 'ai_score', 'created_at')
 
 
 class ExamPaperListSerializer(serializers.ModelSerializer):
@@ -105,15 +129,34 @@ class ExamPaperDetailSerializer(serializers.ModelSerializer):
     def get_questions(self, obj):
         """获取试卷题目数据"""
         questions_data = []
+        # 获取试卷用户的职位信息
+        user_position = obj.user.position
+        is_admin = user_position == '系统管理员'
+
         for record in obj.exam_records.select_related('question').prefetch_related('question__tags').all():
             question = record.question
+
+            # 过滤标签：对于非管理员，只显示相关的role标签
+            filtered_tags = []
+            for tag in question.tags.all():
+                if tag.category != 'role':
+                    # 非role标签直接显示
+                    filtered_tags.append({'id': tag.id, 'name': tag.name})
+                elif is_admin:
+                    # 管理员可以看到所有role标签
+                    filtered_tags.append({'id': tag.id, 'name': tag.name})
+                else:
+                    # 非管理员用户，只显示与自己职位相关的role标签
+                    if tag.name == user_position:
+                        filtered_tags.append({'id': tag.id, 'name': tag.name})
+
             questions_data.append({
                 'id': question.id,
                 'content': question.content,
                 'question_type': question.question_type,
                 'options': question.options,
                 'difficulty': question.difficulty,
-                'tags': [{'id': tag.id, 'name': tag.name} for tag in question.tags.all()]
+                'tags': filtered_tags
             })
         return questions_data
 
@@ -122,17 +165,13 @@ class ExamPaperDetailSerializer(serializers.ModelSerializer):
 
 
 class ExamGenerationSerializer(serializers.Serializer):
-    """生成试卷请求序列化器"""
+    """生成试卷请求序列化器（题目数量由后端配置控制）"""
     reason = serializers.ChoiceField(
         choices=ExamPaper.GenerationReason.choices,
-        default=ExamPaper.GenerationReason.DAILY_PRACTICE
+        default=ExamPaper.GenerationReason.DAILY_PRACTICE,
+        help_text="试卷生成原因"
     )
-    question_count = serializers.IntegerField(
-        min_value=5,
-        max_value=50,
-        default=15,
-        help_text="题目数量，建议10-20题"
-    )
+    # 移除 question_count 字段，题目数量由后端配置决定
 
 
 class ExamPaperResultSerializer(serializers.ModelSerializer):
