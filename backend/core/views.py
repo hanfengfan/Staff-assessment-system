@@ -14,7 +14,7 @@ from .serializers import (
     ExamPaperListSerializer, ExamPaperDetailSerializer, ExamPaperResultSerializer,
     TagSerializer
 )
-from .services import ExamGenerationService
+from .services import ExamGenerationService, ExamScoringService
 
 
 class StandardResultsSetPagination(PageNumberPagination):
@@ -215,13 +215,8 @@ def start_exam(request, paper_id):
 def submit_exam(request, paper_id):
     """提交考试"""
     try:
+        # 检查试卷是否存在且属于当前用户
         exam_paper = ExamPaper.objects.get(id=paper_id, user=request.user)
-
-        # 检查试卷状态
-        if exam_paper.status != ExamPaper.Status.IN_PROGRESS:
-            return Response({
-                'error': '试卷未开始或已提交'
-            }, status=status.HTTP_400_BAD_REQUEST)
 
         # 获取提交的答案
         answers = request.data.get('answers', {})
@@ -230,58 +225,37 @@ def submit_exam(request, paper_id):
                 'error': '未提供答案'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # 计算分数
-        exam_records = exam_paper.exam_records.all()
-        question_count = exam_records.count()
+        # 使用ExamScoringService进行评分
+        scoring_service = ExamScoringService()
 
-        # 每题平均分
-        score_per_question = exam_paper.total_score / question_count if question_count > 0 else 0
+        # 调用服务层的submit_exam方法
+        result = scoring_service.submit_exam(paper_id, answers)
 
-        correct_count = 0
-        for record in exam_records:
-            question = record.question
-            answer = answers.get(str(question.id))
+        # 获取更新后的试卷信息
+        updated_paper = ExamPaper.objects.get(id=paper_id)
 
-            # 设置答案
-            record.user_answer = answer
+        # 组合返回数据，保持与前端期望的格式一致
+        response_data = {
+            'id': updated_paper.id,
+            'status': updated_paper.get_status_display(),
+            'total_score': updated_paper.total_score,
+            'score_obtained': result.get('total_score', 0),
+            'accuracy': round(result.get('accuracy', 0), 2),
+            'completed_at': updated_paper.completed_at,
+            'tag_performance': result.get('tag_performance', [])
+        }
 
-            # 判断答案是否正确
-            is_correct = str(answer) == str(question.correct_answer)
-            record.is_correct = is_correct
-
-            # 更新该题得分
-            record.score_gained = score_per_question if is_correct else 0
-
-            if is_correct:
-                correct_count += 1
-
-            record.save()
-
-        # 计算总分
-        obtained_score = correct_count * score_per_question
-
-        # 更新试卷状态和分数
-        exam_paper.status = ExamPaper.Status.COMPLETED
-        exam_paper.completed_at = timezone.now()
-        exam_paper.score_obtained = obtained_score
-        exam_paper.save()
-
-        # 计算准确率
-        accuracy = (correct_count / question_count * 100) if question_count > 0 else 0
-
-        return Response({
-            'id': exam_paper.id,
-            'status': exam_paper.get_status_display(),
-            'total_score': exam_paper.total_score,
-            'score_obtained': obtained_score,
-            'accuracy': round(accuracy, 2),
-            'completed_at': exam_paper.completed_at
-        }, status=status.HTTP_200_OK)
+        return Response(response_data, status=status.HTTP_200_OK)
 
     except ExamPaper.DoesNotExist:
         return Response({
             'error': '试卷不存在'
         }, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        # 捕获其他可能的异常
+        return Response({
+            'error': f'提交试卷时发生错误: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['DELETE'])

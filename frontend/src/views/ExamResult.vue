@@ -89,20 +89,20 @@
         </div>
       </el-card>
 
-      <!-- 错题解析 -->
+      <!-- 题目解析 -->
       <el-card class="wrong-answers">
         <template #header>
           <div class="card-header">
-            <el-icon><Close /></el-icon>
-            <span>错题解析</span>
-            <el-badge :value="wrongAnswers.length" type="danger" v-if="wrongAnswers.length > 0" />
+            <el-icon><Document /></el-icon>
+            <span>题目解析</span>
+            <el-badge :value="wrongAnswers.length" type="primary" v-if="wrongAnswers.length > 0" />
           </div>
         </template>
         <div v-if="wrongAnswers.length === 0" class="no-wrong-answers">
           <el-result
             icon="success"
-            title="恭喜！全部答对"
-            sub-title="您在本次考试中表现优秀，继续保持！"
+            title="恭喜！没有需要解析的题目"
+            sub-title="您在本次客观题中表现优秀，继续保持！"
           />
         </div>
         <div v-else class="wrong-list">
@@ -113,7 +113,16 @@
           >
             <div class="wrong-header">
               <span class="question-number">第 {{ item.question_index + 1 }} 题</span>
-              <el-tag type="danger" size="small">答错</el-tag>
+              <!-- 主观题显示通过/未通过状态 -->
+              <el-tag
+                v-if="item.question_type === 'subjective'"
+                :type="item.ai_score >= 60 ? 'success' : 'danger'"
+                size="small"
+              >
+                {{ item.ai_score >= 60 ? '通过' : '未通过' }}
+              </el-tag>
+              <!-- 客观题显示答错 -->
+              <el-tag v-else type="danger" size="small">答错</el-tag>
             </div>
             <div class="question-content">
               {{ item.question_content }}
@@ -121,22 +130,44 @@
             <div class="answer-comparison">
               <div class="your-answer">
                 <span class="answer-label">您的答案:</span>
-                <div v-if="item.question_type === 'subjective' && item.ai_score !== null">
-                  <el-tag type="warning">得分: {{ item.ai_score }}/100</el-tag>
-                  <div class="subjective-score">
-                    <el-progress
-                      :percentage="item.ai_score"
-                      :color="getScoreColor(item.ai_score)"
-                      :show-text="false"
-                      :stroke-width="8"
-                    />
+                <div v-if="item.question_type === 'subjective'" class="subjective-answer-section">
+                  <div class="subjective-content">{{ formatAnswer(item.your_answer, item.question_type) }}</div>
+                  <!-- 显示AI评分（如果存在） -->
+                  <div v-if="item.ai_score !== null && item.ai_score !== undefined" class="subjective-score-section">
+                    <el-tag type="warning" size="large">得分: {{ item.ai_score }}/100</el-tag>
+                    <div class="subjective-score">
+                      <el-progress
+                        :percentage="item.ai_score"
+                        :color="getScoreColor(item.ai_score)"
+                        :show-text="false"
+                        :stroke-width="8"
+                      />
+                    </div>
+                    <!-- 显示是否通过 -->
+                    <el-tag
+                      :type="item.ai_score >= 60 ? 'success' : 'danger'"
+                      size="small"
+                      class="pass-status"
+                    >
+                      {{ item.ai_score >= 60 ? '通过' : '未通过' }}
+                    </el-tag>
+                  </div>
+                  <!-- 如果没有AI评分，显示待评分状态 -->
+                  <div v-else class="no-score-section">
+                    <el-tag type="info">待评分</el-tag>
                   </div>
                 </div>
+                <!-- 客观题或非主观题的显示 -->
                 <el-tag v-else type="danger">{{ formatAnswer(item.your_answer, item.question_type) }}</el-tag>
               </div>
               <div class="correct-answer">
                 <span class="answer-label">正确答案:</span>
-                <el-tag type="success">{{ formatAnswer(item.correct_answer, item.question_type) }}</el-tag>
+                <!-- 主观题的正确答案显示为普通文本，不使用el-tag -->
+                <div v-if="item.question_type === 'subjective'" class="reference-answer">
+                  {{ item.correct_answer }}
+                </div>
+                <!-- 客观题继续使用el-tag -->
+                <el-tag v-else type="success">{{ formatAnswer(item.correct_answer, item.question_type) }}</el-tag>
               </div>
             </div>
             <div v-if="item.explanation" class="answer-explanation">
@@ -186,7 +217,7 @@
 import { ref, computed, onMounted, toRaw } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Clock, Document, TrendCharts, Close, HomeFilled } from '@element-plus/icons-vue'
+import { Clock, Document, TrendCharts, Close, HomeFilled, Check } from '@element-plus/icons-vue'
 import { getExamDetail } from '@/api/exam'
 import { useAuthStore } from '@/stores/auth'
 
@@ -247,24 +278,24 @@ const tagPerformance = computed(() => {
   }))
 })
 
-// 计算错题列表
+// 计算题目解析列表（主观题总是显示，客观题只显示错题）
 const wrongAnswers = computed(() => {
   if (!examResult.value?.exam_records) return []
 
-  const wrong = []
+  const answers = []
   let questionIndex = 0
 
   examResult.value.exam_records.forEach(record => {
     questionIndex++
 
-    // 主观题：只有AI评分低于60分才算错题
-    // 客观题：is_correct为false就算错题
-    const isWrong = record.question.question_type === 'subjective'
-      ? record.ai_score < 60
-      : !record.is_correct
+    // 主观题：总是显示
+    // 客观题：只有答错时才显示
+    const shouldShow = record.question.question_type === 'subjective'
+      ? true  // 主观题总是显示
+      : !record.is_correct  // 客观题只显示错题
 
-    if (isWrong) {
-      wrong.push({
+    if (shouldShow) {
+      answers.push({
         question_id: record.question.id,
         question_index: questionIndex - 1,
         question_content: record.question.content,
@@ -278,7 +309,7 @@ const wrongAnswers = computed(() => {
     }
   })
 
-  return wrong
+  return answers
 })
 
 // 获取考试结果
@@ -648,9 +679,65 @@ onMounted(() => {
   gap: 8px;
 }
 
+/* 主观题答案区域样式 */
+.subjective-answer-section {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.subjective-content {
+  padding: 10px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  border-left: 3px solid #409eff;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.subjective-score-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .subjective-score {
-  margin-top: 8px;
-  width: 200px;
+  margin-top: 0;
+  width: 150px;
+}
+
+.pass-status {
+  margin-left: 8px;
+}
+
+.no-score-section {
+  margin-top: 5px;
+}
+
+/* 参考答案样式 */
+.reference-answer {
+  padding: 10px;
+  background-color: #f0f9ff;
+  border-radius: 4px;
+  border-left: 3px solid #67c23a;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-top: 5px;
+}
+
+/* 保留原有的主观题分数样式 */
+.subjective-score .el-progress-bar {
+  border-radius: 4px;
 }
 
 .answer-label {

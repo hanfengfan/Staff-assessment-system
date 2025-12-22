@@ -297,11 +297,13 @@ class ExamScoringService:
                 if record.question.question_type == Question.QuestionType.SUBJECTIVE:
                     # 主观题：result是AI评分的分数(0-100)
                     ai_score = result
+                    print(f"[AI评分] 主观题ID:{record.question.id}, AI评分: {ai_score}")
                     # 将分数按比例转换为题目得分
                     score_per_question = paper.total_score / records.count()
                     record.score_gained = score_per_question * (ai_score / 100)
                     record.ai_score = ai_score  # 保存AI原始分数
                     record.is_correct = ai_score >= 60  # 60分以上算合格
+                    print(f"[AI评分] 保存到数据库 - ai_score: {record.ai_score}, score_gained: {record.score_gained}, is_correct: {record.is_correct}")
                 else:
                     # 客观题：result是布尔值
                     is_correct = result
@@ -388,9 +390,15 @@ class ExamScoringService:
 
     def _ai_grade_subjective(self, question, user_answer):
         """使用AI对主观题进行评分"""
+        print(f"[AI评分] 开始对主观题ID:{question.id}进行评分")
+
         # 检查是否启用AI评分
         if not self.ai_settings.get('ENABLED', False):
+            print(f"[AI评分] AI评分功能已禁用，返回默认分数: {self.ai_settings.get('FALLBACK_SCORE', 60)}")
             return self.ai_settings.get('FALLBACK_SCORE', 60)
+
+        print(f"[AI评分] AI评分功能已启用，准备调用API...")
+        print(f"[AI评分] 使用模型: {self.ai_settings.get('MODEL_NAME', 'gpt-3.5-turbo')}")
 
         # 构建评分提示词
         prompt = self.ai_settings.get('PROMPT_TEMPLATE', '').format(
@@ -418,6 +426,7 @@ class ExamScoringService:
         }
 
         try:
+            print(f"[AI评分] 发送请求到: {self.ai_settings.get('BASE_URL', 'https://api.openai.com/v1')}/chat/completions")
             # 发送请求
             response = requests.post(
                 f'{self.ai_settings.get("BASE_URL", "https://api.openai.com/v1")}/chat/completions',
@@ -426,25 +435,29 @@ class ExamScoringService:
                 timeout=self.ai_settings.get('TIMEOUT', 30)
             )
 
+            print(f"[AI评分] 响应状态码: {response.status_code}")
             response.raise_for_status()
             result = response.json()
 
             # 提取评分结果
             score_text = result['choices'][0]['message']['content'].strip()
+            print(f"[AI评分] API返回原始内容: {score_text}")
 
             # 尝试解析分数
             try:
                 score = float(score_text)
                 # 确保分数在0-100范围内
                 score = max(0, min(100, score))
+                print(f"[AI评分] 解析成功，最终分数: {score}")
                 return score
-            except (ValueError, TypeError):
+            except (ValueError, TypeError) as e:
+                print(f"[AI评分] 解析分数失败: {str(e)}，返回默认分数: {self.ai_settings.get('FALLBACK_SCORE', 60)}")
                 # 解析失败，返回默认分数
                 return self.ai_settings.get('FALLBACK_SCORE', 60)
 
         except Exception as e:
             # 任何错误都返回默认分数
-            print(f"AI评分失败: {str(e)}")
+            print(f"[AI评分] API调用失败: {str(e)}，返回默认分数: {self.ai_settings.get('FALLBACK_SCORE', 60)}")
             return self.ai_settings.get('FALLBACK_SCORE', 60)
 
     def _calculate_tag_performance(self, tag_scores):

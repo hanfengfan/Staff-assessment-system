@@ -24,14 +24,13 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
+    minify: 'esbuild',
     rollupOptions: {
       output: {
-        manualChunks: {
-          'element-plus': ['element-plus'],
-          'echarts': ['echarts'],
-          'vendor': ['vue', 'vue-router', 'pinia', 'axios']
-        }
+        // 使用 Rollup 默认策略，避免低内存下的深度分析
+        manualChunks: undefined
       }
-    }
+    },
+    chunkSizeWarningLimit: 2000
   }
 })
