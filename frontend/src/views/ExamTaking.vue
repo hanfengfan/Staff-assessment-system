@@ -284,9 +284,9 @@ const initExam = async () => {
       })
       examData = response
 
-      const startResponse = await startExam(examData.paper_id)
+      const startResponse = await startExam(examData.id)
       examStore.setExam({
-        id: examData.paper_id,
+        id: examData.id,
         title: examData.title,
         status: startResponse.status,
         time_limit: examData.time_limit,
