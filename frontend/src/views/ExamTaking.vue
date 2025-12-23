@@ -612,7 +612,7 @@ watch(() => route.params.id, (newId) => {
 
 // 生命周期
 onMounted(() => {
-  initExam()
+  // initExam()
 })
 
 onUnmounted(() => {
