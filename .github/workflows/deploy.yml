@@ -30,7 +30,7 @@ jobs:
           docker-compose down
           
           # 启动新容器
-          docker-compose up -d --build
+          docker-compose build --no-cache
           
           # 清理无用镜像
           docker image prune -f
