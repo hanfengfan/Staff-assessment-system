@@ -14,7 +14,7 @@ __pycache__/
 # 本地数据库 (对应图中 backend/db.sqlite3)
 # 也就是只同步代码，不同步本地测试数据
 # *.sqlite3
-# backend/db.sqlite3
+backend/db.sqlite3
 
 # ========================
 # 2. 过滤 Frontend 前端环境与构建
