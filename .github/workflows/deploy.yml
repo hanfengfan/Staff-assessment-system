@@ -25,10 +25,8 @@ jobs:
           
           # 执行我们在上一轮对话中写的更新脚本
           # 如果你还没写那个脚本，也可以直接写命令：
-          echo "=== 正在拉取最新代码... ==="
-          git pull
-          echo "=== 正在重建并重启容器... ==="
+          git pull origin main
           docker-compose up -d --build
-          echo "=== 清理无用的旧镜像... ==="
           docker image prune -f
           echo "=== 更新完成！ ==="
+          
