@@ -1,0 +1,34 @@
+name: Auto Deploy
+
+# 触发条件：当 main 分支收到 push 时
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    # 1. 这里不需要拉取代码，因为我们是去服务器上拉取
+    
+    # 2. 使用 SSH 远程连接服务器并执行命令
+    - name: Remote SSH Commands
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.KEY }}
+        # 执行的命令
+        script: |
+          # 进入项目目录 (请修改为你真实的目录路径)
+          cd /home/Staff-assessment-system
+          
+          # 执行我们在上一轮对话中写的更新脚本
+          # 如果你还没写那个脚本，也可以直接写命令：
+          echo "=== 正在拉取最新代码... ==="
+          git pull
+          echo "=== 正在重建并重启容器... ==="
+          docker-compose up -d --build
+          echo "=== 清理无用的旧镜像... ==="
+          docker image prune -f
+          echo "=== 更新完成！ ==="
