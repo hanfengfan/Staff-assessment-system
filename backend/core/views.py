@@ -144,16 +144,28 @@ def start_exam(request, paper_id):
     try:
         exam_paper = ExamPaper.objects.get(id=paper_id, user=request.user)
 
-        # 检查试卷状态
-        if exam_paper.status != ExamPaper.Status.NOT_STARTED:
-            return Response({
-                'error': '试卷已经开始或已提交'
-            }, status=status.HTTP_400_BAD_REQUEST)
+        # # 检查试卷状态
+        # if exam_paper.status != ExamPaper.Status.NOT_STARTED:
+        #     return Response({
+        #         'error': '试卷已经开始或已提交'
+        #     }, status=status.HTTP_400_BAD_REQUEST)
 
-        # 更新试卷状态和开始时间
-        exam_paper.status = ExamPaper.Status.IN_PROGRESS
-        exam_paper.started_at = timezone.now()
-        exam_paper.save()
+        # # 更新试卷状态和开始时间
+        # exam_paper.status = ExamPaper.Status.IN_PROGRESS
+        # exam_paper.started_at = timezone.now()
+        # exam_paper.save()
+
+        # 如果试卷是“已完成”状态，依然报错
+        if exam_paper.status == ExamPaper.Status.COMPLETED:
+            return Response({
+                'error': '试卷已提交，无法再次开始'
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+        # 如果是“未开始”，则更新状态；如果是“进行中”，则直接放行（视为重入）
+        if exam_paper.status == ExamPaper.Status.NOT_STARTED:
+            exam_paper.status = ExamPaper.Status.IN_PROGRESS
+            exam_paper.started_at = timezone.now()
+            exam_paper.save()
 
         # 获取试卷题目信息（不含答案）
         exam_records = exam_paper.exam_records.select_related('question').prefetch_related('question__tags')
