@@ -212,7 +212,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, reactive, computed, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Document, Clock, List, Check, Close, ArrowLeft, ArrowRight, InfoFilled } from '@element-plus/icons-vue'
@@ -609,11 +609,6 @@ watch(() => route.params.id, (newId) => {
     initExam()
   }
 }, { immediate: true })
-
-// 生命周期
-onMounted(() => {
-  // initExam()
-})
 
 onUnmounted(() => {
   examStore.stopTimer()
