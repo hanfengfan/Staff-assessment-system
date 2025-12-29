@@ -63,7 +63,7 @@ class ExamGenerationService:
                 user=user,
                 generation_reason=reason,
                 status=ExamPaper.Status.NOT_STARTED,
-                title=f"{user.job_number}的智能考核试卷",
+                title=f"{user.job_number}的考核试卷",
                 total_score=100.0,  # 固定100分，根据实际题目数量平均分配
             )
 
@@ -162,7 +162,8 @@ class ExamGenerationService:
             weak_questions = candidate_questions.filter(
                 tags__in=weak_tags
             ).exclude(
-                id__in=[q.id for q in selected_questions]
+                id__in=[q.id for q in selected_questions],
+                question_type=Question.QuestionType.SUBJECTIVE
             ).distinct()
 
             weak_selected = self._random_select_questions(
@@ -173,7 +174,8 @@ class ExamGenerationService:
         # 2. 新题探索题目（如果还有剩余名额）
         if strategy_counts['new'] > 0:
             remaining_questions = candidate_questions.exclude(
-                id__in=[q.id for q in selected_questions]
+                id__in=[q.id for q in selected_questions],
+                question_type=Question.QuestionType.SUBJECTIVE
             )
 
             new_selected = self._random_select_questions(

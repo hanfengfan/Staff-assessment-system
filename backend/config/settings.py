@@ -10,10 +10,18 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# 加载 .env 文件
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # 如果没有安装 python-dotenv，跳过加载
 
 
 # Quick-start development settings - unsuitable for production
@@ -176,7 +184,7 @@ ASSESSMENT_SETTINGS = {
 # AI 评分配置
 AI_GRADING_SETTINGS = {
     'ENABLED': True,  # 是否启用AI评分
-    'API_KEY': 'sk-867a6b9708a24e52ac2ddfea05bd29b9',  # AI服务的API密钥，请填写实际的API密钥
+    'API_KEY': os.environ.get('DEEPSEEK_API_KEY', ''),  # AI服务的API密钥，从环境变量读取
     'MODEL_NAME': 'deepseek-chat',  # 使用的模型名称
     'BASE_URL': 'https://api.deepseek.com/v1',  # API基础URL
     'MAX_RETRIES': 3,  # 最大重试次数

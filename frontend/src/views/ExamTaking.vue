@@ -182,6 +182,10 @@
               <el-icon><InfoFilled /></el-icon>
               <span>请详细阐述你的观点，答案将自动评分</span>
             </div>
+            <VoiceInput
+              @result="handleVoiceResult"
+              :disabled="isRecording"
+            />
           </div>
         </div>
 
@@ -215,11 +219,12 @@
 import { ref, reactive, computed, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Document, Clock, List, Check, Close, ArrowLeft, ArrowRight, InfoFilled } from '@element-plus/icons-vue'
+import { Document, Clock, List, Check, Close, ArrowLeft, ArrowRight, InfoFilled, Microphone } from '@element-plus/icons-vue'
 import { useExamStore } from '@/stores/exam'
 import { generateExam, startExam, submitExam, getExamDetail } from '@/api/exam'
 import { useAuthStore } from '@/stores/auth'
 import { storeToRefs } from 'pinia'
+import VoiceInput from '@/components/VoiceInput.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -230,6 +235,7 @@ const authStore = useAuthStore()
 const loading = ref(false)
 const submitting = ref(false)
 const submitDialogVisible = ref(false)
+const isRecording = ref(false)
 
 // 从 store 获取状态 - 使用 storeToRefs 保持响应性
 const { currentExam, examQuestions, currentQuestionIndex, userAnswers, examTime, currentQuestion,
@@ -385,6 +391,15 @@ const isOptionSelected = (questionId, optionKey) => {
 const handleSubjectiveInput = (questionId) => {
   // 主观题答案已经在v-model中自动更新，这里可以添加额外的处理逻辑
   // 比如自动保存草稿等
+}
+
+// 处理语音识别结果
+const handleVoiceResult = (text) => {
+  const currentQ = currentQuestion.value
+  if (!currentQ || !text) return
+  const currentAnswer = getAnswerForQuestion(currentQ.id) || ''
+  // 追加识别结果到现有答案
+  setAnswerForQuestion(currentQ.id, currentAnswer + text)
 }
 
 // 获取题型颜色
