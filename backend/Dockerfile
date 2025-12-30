@@ -16,8 +16,11 @@ RUN pip install gunicorn
 # 6. 复制项目所有代码到容器
 COPY . .
 
-# 7. 声明容器内部服务端口 (仅作声明，不直接暴露)
+# 7. 收集静态文件
+RUN python manage.py collectstatic --noinput
+
+# 8. 声明容器内部服务端口 (仅作声明，不直接暴露)
 EXPOSE 8000
 
-# 8. 启动命令 (替换 myproject 为你的 Django 项目同名文件夹名字)
+# 9. 启动命令 (替换 myproject 为你的 Django 项目同名文件夹名字)
 CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]
