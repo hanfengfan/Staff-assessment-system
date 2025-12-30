@@ -4,6 +4,8 @@ services:
   # === Django 后端服务 ===
   backend:
     build: ./backend             # 告诉它去 backend 目录找 Dockerfile
+    env_file:             # 核心配置：直接引用外部 .env 文件
+      - ./backend/.env
     container_name: my_django_container
     restart: always
     ports:
@@ -11,7 +13,7 @@ services:
       - "127.0.0.1:8081:8000"
     volumes:
       # - ./backend:/app           # 挂载代码，方便后续修改代码不用重做镜像
-      
+      - ./backend/.env:/app/.env   # 物理挂载，确保文件同步
       # ✅ [新增] 只挂载需要保存数据的“单文件”或“特定目录”
       # 这样代码会使用镜像里的最新版，而数据库会读写服务器上的文件
       - ./backend/db.sqlite3:/app/db.sqlite3
