@@ -165,6 +165,18 @@ REST_FRAMEWORK = {
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
+# CSRF 信任的域名（HTTPS 反向代理必须配置）
+CSRF_TRUSTED_ORIGINS = [
+    'https://dofuns.cn',
+    'https://www.dofuns.cn',
+]
+
+# 告诉 Django 请求来自 HTTPS 反向代理
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# 让 Django 正确处理反向代理的 Host 头
+USE_X_FORWARDED_HOST = True
+
 # Assessment System Settings
 ASSESSMENT_SETTINGS = {
     # 能力画像更新权重配置
@@ -178,7 +190,7 @@ ASSESSMENT_SETTINGS = {
     # 能力阈值
     'WEAK_CAPABILITY_THRESHOLD': 60,
     # 排除时间（小时）
-    'EXCLUDE_RECENT_HOURS': 12,
+    'EXCLUDE_RECENT_HOURS': 1,
 }
 
 # AI 评分配置
