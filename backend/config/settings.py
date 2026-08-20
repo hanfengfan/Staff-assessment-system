@@ -169,8 +169,8 @@ CORS_ALLOW_CREDENTIALS = True
 
 # CSRF 信任的域名（HTTPS 反向代理必须配置）
 CSRF_TRUSTED_ORIGINS = [
-    'https://dofuns.cn',
-    'https://www.dofuns.cn',
+    'https://staffast.work.gd',
+    'https://www.staffast.work.gd',
 ]
 
 # 告诉 Django 请求来自 HTTPS 反向代理
