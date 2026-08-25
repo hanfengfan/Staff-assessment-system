@@ -1,0 +1,8 @@
+{% extends "admin/change_list.html" %}
+
+{% block object-tools-items %}
+    <li>
+        <a href="import-excel/" class="addlink">批量导入题目 (Excel/CSV)</a>
+    </li>
+    {{ block.super }}
+{% endblock %}

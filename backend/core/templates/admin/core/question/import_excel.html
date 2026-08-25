@@ -1,0 +1,22 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div id="content-main">
+    <p>
+        文件格式（第一行为表头，可与列名不同但顺序必须一致）：<br>
+        序号, 题型(单选/多选/判断题), 题目, 选项A, 选项B, 选项C, 选项D, 答案, 标签(用"、"分隔)
+    </p>
+    <p>
+        判断题的选项A-D留空，答案填"正确"或"错误"；单选题答案填一个选项字母，多选题填多个字母（如 ABC）。
+        标签必须是数据库中已存在的标签名称，不存在的标签会被跳过（题目仍会导入，只是不关联该标签）。
+    </p>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div style="margin: 15px 0;">
+            {{ form.as_p }}
+        </div>
+        <input type="submit" value="上传并导入" class="default">
+        <a href="../" class="button cancel-link" style="margin-left: 10px;">取消</a>
+    </form>
+</div>
+{% endblock %}

@@ -1,5 +1,19 @@
-from django.contrib import admin
+from django import forms
+from django.contrib import admin, messages
+from django.shortcuts import render, redirect
+from django.urls import path, reverse
+
 from .models import Tag, Question, ExamPaper, ExamRecord
+from .question_import import import_questions_from_workbook, import_questions_from_csv
+
+
+class QuestionImportForm(forms.Form):
+    file = forms.FileField(label='题目文件 (.xlsx 或 .csv)')
+    dry_run = forms.BooleanField(
+        label='仅校验，不写入数据库（试运行）',
+        required=False,
+        initial=True,
+    )
 
 
 @admin.register(Tag)
@@ -17,10 +31,76 @@ class QuestionAdmin(admin.ModelAdmin):
     search_fields = ('content', 'explanation')
     filter_horizontal = ('tags',)
     readonly_fields = ('created_at', 'updated_at')
+    actions = ['enable_questions', 'disable_questions']
+    change_list_template = 'admin/core/question/change_list.html'
+
+    def get_urls(self):
+        urls = [
+            path('import-excel/', self.admin_site.admin_view(self.import_excel), name='core_question_import_excel'),
+        ]
+        return urls + super().get_urls()
+
+    def import_excel(self, request):
+        if request.method == 'POST':
+            form = QuestionImportForm(request.POST, request.FILES)
+            if form.is_valid():
+                uploaded = form.cleaned_data['file']
+                dry_run = form.cleaned_data['dry_run']
+                name = uploaded.name.lower()
+
+                try:
+                    if name.endswith('.csv'):
+                        result = import_questions_from_csv(uploaded, dry_run=dry_run)
+                    elif name.endswith('.xlsx'):
+                        result = import_questions_from_workbook(uploaded, dry_run=dry_run)
+                    else:
+                        messages.error(request, '不支持的文件格式，请上传 .xlsx 或 .csv 文件')
+                        return redirect('..')
+                except Exception as exc:
+                    messages.error(request, f'导入失败: {exc}')
+                    return redirect('..')
+
+                level = messages.INFO if dry_run else messages.SUCCESS
+                prefix = '[试运行] ' if dry_run else ''
+                messages.add_message(request, level, f'{prefix}{result.summary}')
+
+                for msg_level, text in result.messages[:50]:
+                    messages.add_message(
+                        request,
+                        messages.WARNING if msg_level == 'warning' else messages.ERROR,
+                        text,
+                    )
+                if len(result.messages) > 50:
+                    messages.warning(request, f'还有 {len(result.messages) - 50} 条提示未显示，请检查源文件')
+
+                if result.missing_tags:
+                    messages.error(request, f'以下标签在数据库中不存在，相关题目已跳过关联这些标签: {sorted(result.missing_tags)}')
+
+                return redirect('..')
+        else:
+            form = QuestionImportForm()
+
+        context = {
+            **self.admin_site.each_context(request),
+            'form': form,
+            'title': '批量导入题目',
+            'opts': self.model._meta,
+        }
+        return render(request, 'admin/core/question/import_excel.html', context)
 
     def content_short(self, obj):
         return obj.content[:50] + '...' if len(obj.content) > 50 else obj.content
     content_short.short_description = '题目内容'
+
+    def enable_questions(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f'已启用 {updated} 道题目')
+    enable_questions.short_description = '启用选中的题目'
+
+    def disable_questions(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f'已禁用 {updated} 道题目')
+    disable_questions.short_description = '禁用选中的题目'
 
     fieldsets = (
         ('基本信息', {
