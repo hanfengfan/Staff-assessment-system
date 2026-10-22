@@ -110,9 +110,16 @@ Staff-assessment-system/
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| job_number | String | 工号 |
+| name | String | 姓名 |
+| job_number | String | 工号（唯一，登录凭证；模型没有 username 字段） |
 | position | String | 岗位 |
-| department | String | 部门 |
+| station | String | 所属车站 |
+| zone | String | 所属站区 |
+| extra | JSON | 预留扩展字段 |
+
+账号只能由管理员在「人员管理」页面（`/admin/staff`）或 Django Admin 中创建，系统不提供自助注册。
+岗位、所属车站、所属站区是统计分析的维度，维度定义见 `backend/users/dimensions.py`，
+可选值接口为 `GET /api/staff/dimensions/`。
 
 ### 标签 (Tag)
 

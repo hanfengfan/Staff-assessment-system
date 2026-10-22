@@ -6,7 +6,7 @@ from .models import CapabilityProfile, TrainingMaterial
 class CapabilityProfileAdmin(admin.ModelAdmin):
     list_display = ('user', 'tag', 'mastery_level', 'created_at', 'updated_at')
     list_filter = ('tag', 'mastery_level', 'created_at')
-    search_fields = ('user__job_number', 'user__username', 'tag__name')
+    search_fields = ('user__job_number', 'user__name', 'tag__name')
     readonly_fields = ('created_at', 'updated_at')
 
     def get_readonly_fields(self, request, obj=None):

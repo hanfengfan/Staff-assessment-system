@@ -5,8 +5,8 @@
       <div class="user-header">
         <el-avatar size="large" :icon="UserFilled" />
         <div class="user-details">
-          <h2>{{ user?.get_full_name || user?.username }}</h2>
-          <p class="user-position">{{ user?.position }} · {{ user?.department }}</p>
+          <h2>{{ user?.name || user?.job_number }}</h2>
+          <p class="user-position">{{ [user?.position, user?.station, user?.zone].filter(Boolean).join(' · ') }}</p>
         </div>
         <el-button type="danger" plain @click="handleLogout">
           <el-icon><SwitchButton /></el-icon>
@@ -31,7 +31,7 @@
           <el-option
             v-for="userItem in userList"
             :key="userItem.id"
-            :label="`${userItem.job_number} - ${userItem.username}`"
+            :label="`${userItem.job_number} - ${userItem.name}`"
             :value="userItem.id"
           />
         </el-select>

@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 const Login = () => import('@/views/Login.vue')
 const Dashboard = () => import('@/views/Dashboard.vue')
 const AdminDashboard = () => import('@/views/AdminDashboard.vue')
+const StaffManagement = () => import('@/views/StaffManagement.vue')
 const ExamTaking = () => import('@/views/ExamTaking.vue')
 const ExamResult = () => import('@/views/ExamResult.vue')
 
@@ -52,6 +53,16 @@ const routes = [
     component: AdminDashboard,
     meta: {
       title: '管理员控制台',
+      requiresAuth: true,
+      requiresAdmin: true
+    }
+  },
+  {
+    path: '/admin/staff',
+    name: 'StaffManagement',
+    component: StaffManagement,
+    meta: {
+      title: '人员管理',
       requiresAuth: true,
       requiresAdmin: true
     }

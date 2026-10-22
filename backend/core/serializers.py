@@ -96,18 +96,17 @@ class ExamPaperListSerializer(serializers.ModelSerializer):
     question_count = serializers.SerializerMethodField()
     # 添加分离的用户字段
     user_id = serializers.IntegerField(source='user.id', read_only=True)
-    username = serializers.CharField(source='user.username', read_only=True)
     job_number = serializers.CharField(source='user.job_number', read_only=True)
 
     class Meta:
         model = ExamPaper
-        fields = ('id', 'user_name', 'user_id', 'username', 'job_number',
+        fields = ('id', 'user_name', 'user_id', 'job_number',
                  'title', 'status', 'total_score', 'score_obtained',
                  'generation_reason', 'question_count', 'created_at')
-        read_only_fields = ('id', 'created_at', 'user_id', 'username', 'job_number')
+        read_only_fields = ('id', 'created_at', 'user_id', 'job_number')
 
     def get_user_name(self, obj):
-        return f"{obj.user.job_number} - {obj.user.get_full_name() or obj.user.username}"
+        return f"{obj.user.job_number} - {obj.user.name}"
 
     def get_question_count(self, obj):
         return obj.exam_records.count()
@@ -161,7 +160,7 @@ class ExamPaperDetailSerializer(serializers.ModelSerializer):
         return questions_data
 
     def get_user_name(self, obj):
-        return f"{obj.user.job_number} - {obj.user.get_full_name() or obj.user.username}"
+        return f"{obj.user.job_number} - {obj.user.name}"
 
 
 class ExamGenerationSerializer(serializers.Serializer):
@@ -189,7 +188,7 @@ class ExamPaperResultSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'created_at', 'started_at', 'completed_at')
 
     def get_user_name(self, obj):
-        return f"{obj.user.job_number} - {obj.user.get_full_name() or obj.user.username}"
+        return f"{obj.user.job_number} - {obj.user.name}"
 
     def get_duration(self, obj):
         """计算考试用时（秒）"""

@@ -1,10 +1,13 @@
-from rest_framework import status, permissions
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.response import Response
+from django.db.models import Q
+from rest_framework import permissions, status, viewsets
 from rest_framework.authtoken.models import Token
-from rest_framework.generics import CreateAPIView
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
+
+from .dimensions import apply_dimension_filters, dimension_options
 from .models import User
-from .serializers import LoginSerializer, UserSerializer, UserCreateSerializer
+from .serializers import LoginSerializer, StaffSerializer, UserSerializer
 
 
 @api_view(['POST'])
@@ -45,8 +48,42 @@ def user_profile_view(request):
     return Response(serializer.data)
 
 
-class UserCreateView(CreateAPIView):
-    """用户注册接口"""
-    queryset = User.objects.all()
-    serializer_class = UserCreateSerializer
-    permission_classes = [permissions.AllowAny]
+class StaffPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 200
+
+
+class StaffViewSet(viewsets.ModelViewSet):
+    """员工增删查改，仅管理员可用。管理员账号（is_staff）不在此处管理。
+
+    列表支持 ?search=姓名/工号 与 ?position= ?station= ?zone= ?is_active= 筛选。
+    """
+    serializer_class = StaffSerializer
+    permission_classes = [permissions.IsAdminUser]
+    pagination_class = StaffPagination
+
+    def get_queryset(self):
+        qs = User.objects.filter(is_staff=False).order_by('job_number')
+        params = self.request.query_params
+        search = params.get('search')
+        if search:
+            qs = qs.filter(Q(name__icontains=search) | Q(job_number__icontains=search))
+        qs = apply_dimension_filters(qs, params)
+        is_active = params.get('is_active')
+        if is_active in ('true', 'false'):
+            qs = qs.filter(is_active=(is_active == 'true'))
+        return qs
+
+    def perform_update(self, serializer):
+        user = serializer.save()
+        # 停用或改密后，旧登录态立即失效
+        if not user.is_active or 'password' in serializer.validated_data:
+            Token.objects.filter(user=user).delete()
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAdminUser])
+def staff_dimensions(request):
+    """岗位/车站/站区各维度的可选值及人数，供筛选与后续统计分析使用。"""
+    return Response(dimension_options())

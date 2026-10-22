@@ -159,7 +159,7 @@ def capability_summary(request):
 
     summary_data = {
         'user_id': user.id,
-        'username': user.username,
+        'name': user.name,
         'job_number': user.job_number,
         'overall_score': round(overall_score, 2),
         'weak_tags': weak_tags,
@@ -322,8 +322,12 @@ def user_list(request):
     user_data = [
         {
             'id': user.id,
-            'username': user.username,
+            'name': user.name,
             'job_number': user.job_number,
+            'name': user.name,
+            'position': user.position,
+            'station': user.station,
+            'zone': user.zone,
             'is_active': user.is_active,
             'date_joined': user.date_joined,
             'last_login': user.last_login

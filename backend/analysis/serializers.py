@@ -37,7 +37,7 @@ class TrainingMaterialSerializer(serializers.ModelSerializer):
         required=False
     )
     tag_details = TagSerializer(source='tags', many=True, read_only=True)
-    creator_name = serializers.CharField(source='creator.username', read_only=True)
+    creator_name = serializers.CharField(source='creator.name', read_only=True)
     creator_job_number = serializers.CharField(source='creator.job_number', read_only=True)
 
     class Meta:

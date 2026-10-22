@@ -24,12 +24,3 @@ export function getUserInfo() {
     method: 'get'
   })
 }
-
-// 用户注册
-export function register(data) {
-  return request({
-    url: '/auth/register/',
-    method: 'post',
-    data
-  })
-}

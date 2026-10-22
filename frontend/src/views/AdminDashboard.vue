@@ -9,6 +9,7 @@
               <el-icon><ArrowLeft /></el-icon>
               返回主控制台
             </el-button>
+            <el-button @click="router.push('/admin/staff')">人员管理</el-button>
             <el-button type="primary" @click="refreshData">
               <el-icon><Refresh /></el-icon>
               刷新数据
@@ -88,10 +89,10 @@
               <el-option
                 v-for="user in userList"
                 :key="user.id"
-                :label="`${user.username || user.get_full_name} (${user.job_number || '无工号'})`"
+                :label="`${user.name || '未知用户'} (${user.job_number || '无工号'})`"
                 :value="user.id"
               >
-                <span style="float: left">{{ user.username || user.get_full_name || '未知用户' }}</span>
+                <span style="float: left">{{ user.name || '未知用户' }}</span>
                 <span style="float: right; color: #8492a6; font-size: 13px">{{ user.job_number || '无工号' }}</span>
               </el-option>
               <template v-if="userList.length === 0" #empty>
@@ -128,7 +129,7 @@
         style="width: 100%"
       >
         <el-table-column type="selection" width="55" />
-        <el-table-column prop="username" label="用户" width="150" />
+        <el-table-column prop="user_name" label="用户" width="150" />
         <el-table-column prop="job_number" label="工号" width="120" />
         <el-table-column prop="title" label="试卷标题" width="200" />
         <el-table-column prop="status" label="状态" width="100">

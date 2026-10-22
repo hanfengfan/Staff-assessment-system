@@ -146,11 +146,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Custom User Model
 AUTH_USER_MODEL = 'users.User'
 
-# 自定义认证后端，支持使用工号或用户名登录
-AUTHENTICATION_BACKENDS = [
-    'users.auth_backends.JobNumberBackend',
-]
-
 # REST Framework settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [

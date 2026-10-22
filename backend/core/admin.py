@@ -138,7 +138,7 @@ class ExamRecordInline(admin.TabularInline):
 class ExamPaperAdmin(admin.ModelAdmin):
     list_display = ('user', 'title', 'status', 'score_obtained', 'generation_reason', 'created_at')
     list_filter = ('status', 'generation_reason', 'created_at')
-    search_fields = ('user__job_number', 'user__username', 'title')
+    search_fields = ('user__job_number', 'user__name', 'title')
     readonly_fields = ('created_at', 'updated_at')
     inlines = [ExamRecordInline]
 

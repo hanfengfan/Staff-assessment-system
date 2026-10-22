@@ -32,29 +32,23 @@ class Command(BaseCommand):
         test_users = [
             {
                 'job_number': 'ST001',
-                'username': 'zhangsan',
-                'first_name': '张',
-                'last_name': '三',
+                'name': '张三',
                 'position': '值班站长',
-                'department': '北京西站',
+                'station': '北京西站',
                 'password': 'password123'
             },
             {
                 'job_number': 'ST002',
-                'username': 'lisi',
-                'first_name': '李',
-                'last_name': '四',
+                'name': '李四',
                 'position': '站务员',
-                'department': '北京西站',
+                'station': '北京西站',
                 'password': 'password123'
             },
             {
                 'job_number': 'ST003',
-                'username': 'wangwu',
-                'first_name': '王',
-                'last_name': '五',
+                'name': '王五',
                 'position': '客运值班员',
-                'department': '北京南站',
+                'station': '北京南站',
                 'password': 'password123'
             }
         ]
@@ -63,12 +57,9 @@ class Command(BaseCommand):
             user, created = User.objects.get_or_create(
                 job_number=user_data['job_number'],
                 defaults={
-                    'username': user_data['username'],
-                    'first_name': user_data['first_name'],
-                    'last_name': user_data['last_name'],
+                    'name': user_data['name'],
                     'position': user_data['position'],
-                    'department': user_data['department'],
-                    'email': f"{user_data['username']}@railway.com",
+                    'station': user_data['station'],
                 }
             )
 
