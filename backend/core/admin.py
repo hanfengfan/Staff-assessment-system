@@ -26,9 +26,9 @@ class TagAdmin(admin.ModelAdmin):
 
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
-    list_display = ('content_short', 'question_type', 'difficulty', 'is_active', 'created_at')
-    list_filter = ('question_type', 'difficulty', 'is_active', 'tags', 'created_at')
-    search_fields = ('content', 'explanation')
+    list_display = ('content_short', 'question_type', 'bank_subject', 'assessment_subject', 'category_l1', 'category_l2', 'category_l3', 'knowledge_point', 'difficulty', 'score', 'is_active', 'created_at')
+    list_filter = ('question_type', 'bank_subject', 'assessment_subject', 'category_l1', 'category_l2', 'knowledge_point', 'difficulty', 'is_active', 'tags', 'created_at')
+    search_fields = ('content', 'explanation', 'category_l1', 'category_l2', 'category_l3')
     filter_horizontal = ('tags',)
     readonly_fields = ('created_at', 'updated_at')
     actions = ['enable_questions', 'disable_questions']
@@ -104,7 +104,12 @@ class QuestionAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('基本信息', {
-            'fields': ('content', 'question_type', 'difficulty', 'is_active')
+            'fields': ('content', 'question_type', 'difficulty', 'is_active', 'shuffle_options')
+        }),
+        ('题库分类', {
+            'fields': ('bank_subject', 'assessment_subject',
+                       'category_l1', 'category_l2', 'category_l3',
+                       'knowledge_point', 'score'),
         }),
         ('答案设置', {
             'fields': ('options', 'correct_answer', 'explanation'),

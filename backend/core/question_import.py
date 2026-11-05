@@ -182,7 +182,7 @@ def _process_row(row, result, seen_contents, dry_run):
         question_type=qtype,
         options=options,
         correct_answer=correct_answer,
-        difficulty=3,
+        difficulty=Question.Difficulty.MEDIUM,
         is_active=True,
     )
     question.tags.set(tag_objs)

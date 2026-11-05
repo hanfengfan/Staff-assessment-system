@@ -16,10 +16,20 @@ class BaseTimestampedModel(models.Model):
 class Tag(BaseTimestampedModel):
     """标签模型，用于题目的多维度标注"""
     class Category(models.TextChoices):
+        # 职位类：决定哪些人能抽到这道题
         ROLE = 'role', '职位类'
+        # 能力类：参与能力画像、弱项选题
         POSITION = 'position', '专业能力类'
         EMERGENCY = 'emergency', '专业能力类'
         COMPREHENSIVE = 'comprehensive', '专业能力类'
+        # 属性类：只用于统计筛选和分组，不参与能力画像和选题
+        FORM = 'form', '考核形式'        # 理论 / 实操
+        DEPTH = 'depth', '难度层次'      # 基础 / 提升
+        LINE = 'line', '适用线路'        # 3号线 / 11号线
+        GRADE = 'grade', '适用等级'      # 站务员初级 ... 值班员高级技师
+
+    # 参与能力画像、弱项选题的标签分类。新增属性类分类不要加到这里。
+    ABILITY_CATEGORIES = ('position', 'emergency', 'comprehensive')
 
     name = models.CharField(max_length=50, unique=True, verbose_name='标签名称')
     category = models.CharField(
@@ -47,6 +57,11 @@ class Question(BaseTimestampedModel):
         TRUE_FALSE = 'true_false', '判断题'
         SUBJECTIVE = 'subjective', '主观题'
 
+    class Difficulty(models.TextChoices):
+        EASY = '易', '易'
+        MEDIUM = '中', '中'
+        HARD = '难', '难'
+
     content = models.TextField(verbose_name='题目题干')
     question_type = models.CharField(
         max_length=20,
@@ -69,13 +84,38 @@ class Question(BaseTimestampedModel):
         related_name='questions',
         verbose_name='关联标签'
     )
-    difficulty = models.PositiveSmallIntegerField(
-        default=3,
-        verbose_name='难度系数',
-        help_text='1-5，数字越大难度越高'
+    difficulty = models.CharField(
+        max_length=2,
+        choices=Difficulty.choices,
+        default=Difficulty.MEDIUM,
+        db_index=True,
+        verbose_name='难易度',
+        help_text='易 / 中 / 难，与题库 Excel 一致'
     )
     explanation = models.TextField(blank=True, verbose_name='答案解析')
     is_active = models.BooleanField(default=True, verbose_name='是否启用')
+
+    # 题库来源与分类，用于统计分析（普通列，可直接 GROUP BY）
+    bank_subject = models.CharField(
+        max_length=50, blank=True, default='', db_index=True,
+        verbose_name='题库专业', help_text='题库文件所属专业，如：客运专业'
+    )
+    assessment_subject = models.CharField(
+        max_length=50, blank=True, default='', db_index=True,
+        verbose_name='测评专业', help_text='如：城轨值班员'
+    )
+    category_l1 = models.CharField(max_length=100, blank=True, default='', db_index=True, verbose_name='一级目录')
+    category_l2 = models.CharField(max_length=100, blank=True, default='', db_index=True, verbose_name='二级目录')
+    category_l3 = models.CharField(max_length=100, blank=True, default='', db_index=True, verbose_name='三级目录')
+    score = models.FloatField(
+        null=True, blank=True, verbose_name='试题分数',
+        help_text='题库原始分值，仅记录，当前组卷仍按总分100平均分配'
+    )
+    knowledge_point = models.CharField(max_length=50, blank=True, default='', db_index=True, verbose_name='知识点')
+    shuffle_options = models.BooleanField(
+        default=True, verbose_name='允许打乱选项',
+        help_text='仅对单选、多选生效。选项含"以上皆是""C和D"等依赖位置的措辞时应关闭'
+    )
 
     class Meta:
         verbose_name = '题目'
@@ -157,6 +197,10 @@ class ExamRecord(BaseTimestampedModel):
     score_gained = models.FloatField(default=0.0, verbose_name='得分')
     ai_score = models.FloatField(null=True, blank=True, verbose_name='AI评分(0-100)')
     duration = models.PositiveIntegerField(default=0, verbose_name='答题耗时（秒）')
+    option_order = models.JSONField(
+        null=True, blank=True, verbose_name='选项显示顺序',
+        help_text='组卷时生成，如 ["C","A","D","B"] 表示第1个位置显示原选项C。为空表示按原顺序'
+    )
 
     class Meta:
         verbose_name = '答题记录'

@@ -6,7 +6,8 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from django.contrib.auth import get_user_model
-from .models import Question, ExamPaper, ExamRecord
+from .models import Question, ExamPaper, ExamRecord, Tag
+from .option_shuffle import make_option_order, is_choice_correct
 from analysis.models import CapabilityProfile
 
 User = get_user_model()
@@ -72,20 +73,20 @@ class ExamGenerationService:
                 ExamRecord.objects.create(
                     paper=exam_paper,
                     question=question,
-                    score_gained=0.0  # 初始未答题，得分为0
+                    score_gained=0.0,  # 初始未答题，得分为0
+                    option_order=make_option_order(question),  # 单选/多选随机排列，其余为None
                 )
 
         return exam_paper
 
     def _get_weak_tags(self, user):
-        """获取用户的弱项标签（掌握度低于阈值的标签，排除role标签）"""
+        """获取用户的弱项标签（掌握度低于阈值的能力类标签）"""
         threshold = self.settings['WEAK_CAPABILITY_THRESHOLD']
 
         weak_profiles = CapabilityProfile.objects.filter(
             user=user,
-            mastery_level__lt=threshold
-        ).exclude(
-            tag__category='role'  # 排除role标签，专注实际能力弱项
+            mastery_level__lt=threshold,
+            tag__category__in=Tag.ABILITY_CATEGORIES  # 只看能力类标签
         ).select_related('tag')
 
         return [profile.tag for profile in weak_profiles]
@@ -136,7 +137,7 @@ class ExamGenerationService:
             else:
                 # 如果没有找到对应的role标签，使用position、emergency、comprehensive分类的题目
                 questions = questions.filter(
-                    tags__category__in=['position', 'emergency', 'comprehensive']
+                    tags__category__in=Tag.ABILITY_CATEGORIES
                 ).distinct()
         except Exception as e:
             # 出现异常时，返回所有可用题目作为后备
@@ -294,7 +295,7 @@ class ExamScoringService:
                 record.user_answer = user_answer
 
                 # 判断对错并计分
-                result = self._check_answer(record.question, user_answer)
+                result = self._check_answer(record.question, user_answer, record.option_order)
 
                 if record.question.question_type == Question.QuestionType.SUBJECTIVE:
                     # 主观题：result是AI评分的分数(0-100)
@@ -315,10 +316,9 @@ class ExamScoringService:
 
                 total_score += record.score_gained
 
-                # 统计各标签的得分情况（排除role标签，专注能力维度）
+                # 统计各标签的得分情况（只统计能力类标签）
                 for tag in record.question.tags.all():
-                    # 排除role标签，只统计实际能力相关的标签
-                    if tag.category == 'role':
+                    if tag.category not in Tag.ABILITY_CATEGORIES:
                         continue
 
                     if tag not in tag_scores:
@@ -345,7 +345,7 @@ class ExamScoringService:
             'tag_performance': self._calculate_tag_performance(tag_scores)
         }
 
-    def _check_answer(self, question, user_answer):
+    def _check_answer(self, question, user_answer, option_order=None):
         """检查答案是否正确"""
         if not user_answer:
             return False
@@ -355,7 +355,11 @@ class ExamScoringService:
             score = self._ai_grade_subjective(question, user_answer)
             return score
 
-        # 客观题自动评分
+        # 单选、多选：把考生看到的字母还原成原始选项后按集合比较
+        if question.question_type in (Question.QuestionType.SINGLE, Question.QuestionType.MULTIPLE):
+            return is_choice_correct(question, option_order, user_answer)
+
+        # 判断题自动评分
         # 标准化答案格式
         user_answer = str(user_answer).strip().upper()
         correct_answer = str(question.correct_answer).strip().upper()

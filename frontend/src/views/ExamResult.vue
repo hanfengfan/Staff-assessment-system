@@ -158,7 +158,12 @@
                   </div>
                 </div>
                 <!-- 客观题或非主观题的显示 -->
-                <el-tag v-else type="danger">{{ formatAnswer(item.your_answer, item.question_type) }}</el-tag>
+                <template v-else>
+                  <el-tag v-if="!item.your_answer" type="danger">未作答</el-tag>
+                  <div v-else class="choice-lines">
+                    <el-tag v-for="line in formatChoice(item.your_answer, item)" :key="line" type="danger" class="choice-line">{{ line }}</el-tag>
+                  </div>
+                </template>
               </div>
               <div class="correct-answer">
                 <span class="answer-label">正确答案:</span>
@@ -167,7 +172,9 @@
                   {{ item.correct_answer }}
                 </div>
                 <!-- 客观题继续使用el-tag -->
-                <el-tag v-else type="success">{{ formatAnswer(item.correct_answer, item.question_type) }}</el-tag>
+                <div v-else class="choice-lines">
+                  <el-tag v-for="line in formatChoice(item.correct_answer, item)" :key="line" type="success" class="choice-line">{{ line }}</el-tag>
+                </div>
               </div>
             </div>
             <div v-if="item.explanation" class="answer-explanation">
@@ -301,6 +308,7 @@ const wrongAnswers = computed(() => {
         question_content: record.question.content,
         your_answer: record.user_answer,
         correct_answer: record.question.correct_answer,
+        options: record.question.options,
         question_type: record.question.question_type,
         explanation: record.question.explanation || '需要加强相关知识学习。',
         accuracy: 0,
@@ -372,6 +380,14 @@ const formatAnswer = (answer, questionType) => {
   return answer
 }
 
+// 选择题答案显示为"字母. 选项文本"，判断题保持原样
+const formatChoice = (answer, item) => {
+  if (item.question_type === 'true_false') return [formatAnswer(answer, item.question_type)]
+  const textByKey = Object.fromEntries((item.options || []).map(o => [o.key, o.text]))
+  return String(answer).split(',').map(k => k.trim()).filter(Boolean)
+    .map(k => (textByKey[k] ? `${k}. ${textByKey[k]}` : k))
+}
+
 // 格式化考试时长
 const formatDuration = (seconds) => {
   const hours = Math.floor(seconds / 3600)
@@ -410,6 +426,19 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.choice-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+.choice-line {
+  height: auto;
+  white-space: normal;
+  line-height: 1.5;
+  padding: 4px 10px;
+}
+
 .result-container {
   max-width: 1200px;
   margin: 0 auto;

@@ -69,17 +69,16 @@ def radar_chart_data(request):
         # 普通用户查看自己的数据
         user = request.user
 
-    # 获取用户的能力画像数据（排除role标签）
+    # 获取用户的能力画像数据（只含能力类标签）
     profiles = CapabilityProfile.objects.filter(
-        user=user
-    ).select_related('tag').exclude(
-        tag__category='role'  # 排除role标签
-    )
+        user=user,
+        tag__category__in=Tag.ABILITY_CATEGORIES
+    ).select_related('tag')
 
     # 如果用户没有能力画像数据，为所有能力标签创建默认值
     if not profiles.exists():
-        # 获取所有非role类型的活跃标签
-        all_tags = Tag.objects.exclude(category='role')
+        # 获取所有能力类标签
+        all_tags = Tag.objects.filter(category__in=Tag.ABILITY_CATEGORIES)
         data = [
             {'tag': tag.name, 'score': 50.0}  # 默认中等水平
             for tag in all_tags
@@ -121,10 +120,11 @@ def capability_summary(request):
         # 普通用户查看自己的数据
         user = request.user
 
-    # 计算总体平均分（排除role标签）
+    # 计算总体平均分（只含能力类标签）
     profiles = CapabilityProfile.objects.filter(
-        user=user
-    ).exclude(tag__category='role')  # 排除role标签
+        user=user,
+        tag__category__in=Tag.ABILITY_CATEGORIES
+    )
 
     if profiles.exists():
         overall_score = profiles.aggregate(avg_score=Avg('mastery_level'))['avg_score']
@@ -215,12 +215,11 @@ def trend_data(request):
     for paper in completed_papers:
         date_key = paper.completed_at.date()
 
-        # 统计各标签在该次考试中的表现（排除role标签）
+        # 统计各标签在该次考试中的表现（只含能力类标签）
         tag_scores = {}
         for record in paper.exam_records.all():
             for tag in record.question.tags.all():
-                # 排除role标签
-                if tag.category == 'role':
+                if tag.category not in Tag.ABILITY_CATEGORIES:
                     continue
 
                 if tag not in tag_scores:
@@ -278,9 +277,8 @@ def weak_tag_recommendations(request):
     weak_threshold = 60.0
     weak_profiles = CapabilityProfile.objects.filter(
         user=user,
-        mastery_level__lt=weak_threshold
-    ).exclude(
-        tag__category='role'  # 排除role标签
+        mastery_level__lt=weak_threshold,
+        tag__category__in=Tag.ABILITY_CATEGORIES
     ).select_related('tag').order_by('mastery_level')
 
     recommendations = []

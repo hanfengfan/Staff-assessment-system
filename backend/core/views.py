@@ -15,6 +15,7 @@ from .serializers import (
     TagSerializer
 )
 from .services import ExamGenerationService, ExamScoringService
+from .option_shuffle import shuffled_options
 
 
 class StandardResultsSetPagination(PageNumberPagination):
@@ -188,7 +189,7 @@ def start_exam(request, paper_id):
                 'id': question.id,  # 使用id而不是question_id以保持一致性
                 'content': question.content,
                 'question_type': question.question_type,
-                'options': question.options,
+                'options': shuffled_options(question, record.option_order),
                 'difficulty': question.difficulty,
                 'tags': filtered_tags
             })

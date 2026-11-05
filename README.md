@@ -140,7 +140,7 @@ Staff-assessment-system/
 | content | Text | 题目内容 |
 | options | JSON | 选项（单选、多选、判断题） |
 | answer | String | 正确答案 |
-| difficulty | Integer | 难度等级 (1-5) |
+| difficulty | String | 难易度（易 / 中 / 难） |
 | tags | ManyToMany | 关联标签 |
 
 ### 试卷 (ExamPaper)

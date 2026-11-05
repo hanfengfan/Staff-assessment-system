@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Tag, Question, ExamPaper, ExamRecord
+from .option_shuffle import shuffled_options, display_correct_answer
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -78,6 +79,11 @@ class ExamRecordSerializer(serializers.ModelSerializer):
                  'score_gained', 'duration', 'created_at')
         read_only_fields = ('id', 'is_correct', 'score_gained', 'created_at')
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['question']['options'] = shuffled_options(instance.question, instance.option_order)
+        return data
+
 
 class ExamRecordWithAnswerSerializer(serializers.ModelSerializer):
     """带正确答案的答题记录序列化器（用于错题解析）"""
@@ -88,6 +94,14 @@ class ExamRecordWithAnswerSerializer(serializers.ModelSerializer):
         fields = ('id', 'question', 'user_answer', 'is_correct',
                  'score_gained', 'ai_score', 'duration', 'created_at')
         read_only_fields = ('id', 'is_correct', 'score_gained', 'ai_score', 'created_at')
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        question = instance.question
+        # user_answer 存的是考生当时看到的字母，所以选项和正确答案也要换成同一视角
+        data['question']['options'] = shuffled_options(question, instance.option_order)
+        data['question']['correct_answer'] = display_correct_answer(question, instance.option_order)
+        return data
 
 
 class ExamPaperListSerializer(serializers.ModelSerializer):
@@ -153,7 +167,7 @@ class ExamPaperDetailSerializer(serializers.ModelSerializer):
                 'id': question.id,
                 'content': question.content,
                 'question_type': question.question_type,
-                'options': question.options,
+                'options': shuffled_options(question, record.option_order),
                 'difficulty': question.difficulty,
                 'tags': filtered_tags
             })

@@ -109,7 +109,7 @@ class Command(BaseCommand):
                     {'key': 'D', 'text': '告诉旅客改签只能在发车前24小时办理'}
                 ],
                 'correct_answer': 'B',
-                'difficulty': 2,
+                'difficulty': '易',
                 'explanation': '应根据铁路客运规程，检查车票是否符合改签条件，并按规定办理改签手续。',
                 'tags': ['票务处理']
             },
@@ -124,7 +124,7 @@ class Command(BaseCommand):
                     {'key': 'E', 'text': '为了避免冲突，直接放行'}
                 ],
                 'correct_answer': 'A,B,D',
-                'difficulty': 3,
+                'difficulty': '中',
                 'explanation': '发现疑似危险品时，应立即报告值班员，将乘客带至安全区域，按程序处理，必要时报警。不能自行判断或直接放行。',
                 'tags': ['安全检查', '应急处理']
             },
@@ -138,7 +138,7 @@ class Command(BaseCommand):
                     {'key': 'D', 'text': '关闭车站电源'}
                 ],
                 'correct_answer': 'B',
-                'difficulty': 1,
+                'difficulty': '易',
                 'explanation': '火灾发生时，保障乘客生命安全是第一要务，应立即组织乘客有序疏散撤离。',
                 'tags': ['应急处理']
             },
@@ -150,7 +150,7 @@ class Command(BaseCommand):
                     {'key': 'False', 'text': '继续尝试使用故障系统，等待系统自动恢复'}
                 ],
                 'correct_answer': 'True',
-                'difficulty': 2,
+                'difficulty': '易',
                 'explanation': '系统故障时应立即停止使用，报告技术部门，并启动应急预案设置临时售票点，确保客运服务不受影响。',
                 'tags': ['设备故障', '票务处理']
             },
@@ -164,7 +164,7 @@ class Command(BaseCommand):
                     {'key': 'D', 'text': '让其自己解决问题，避免发生责任纠纷'}
                 ],
                 'correct_answer': 'B',
-                'difficulty': 1,
+                'difficulty': '易',
                 'explanation': '对老年乘客等特殊群体应主动提供帮助服务，体现铁路客运的人文关怀。',
                 'tags': ['乘客服务', '沟通协调']
             }

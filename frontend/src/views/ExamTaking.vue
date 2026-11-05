@@ -119,7 +119,7 @@
               {{ getTypeText(question.question_type) }}
             </el-tag>
             <el-tag type="warning" class="difficulty-tag">
-              难度: {{ question.difficulty }}
+              难易度: {{ question.difficulty }}
             </el-tag>
           </div>
           <div class="question-tags">
