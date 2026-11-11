@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Tag, Question, ExamPaper, ExamRecord
 from .option_shuffle import shuffled_options, display_correct_answer
+from .tag_filter import visible_tags
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -32,23 +33,7 @@ class QuestionSerializer(serializers.ModelSerializer):
         if not request or not request.user.is_authenticated:
             return [{'id': tag.id, 'name': tag.name} for tag in obj.tags.all()]
 
-        user_position = request.user.position
-        is_admin = user_position == '系统管理员'
-
-        filtered_tags = []
-        for tag in obj.tags.all():
-            if tag.category != 'role':
-                # 非role标签直接显示
-                filtered_tags.append({'id': tag.id, 'name': tag.name})
-            elif is_admin:
-                # 管理员可以看到所有role标签
-                filtered_tags.append({'id': tag.id, 'name': tag.name})
-            else:
-                # 非管理员用户，只显示与自己职位相关的role标签
-                if tag.name == user_position:
-                    filtered_tags.append({'id': tag.id, 'name': tag.name})
-
-        return filtered_tags
+        return visible_tags(obj.tags.all(), request.user)
 
 
 class QuestionDetailSerializer(QuestionSerializer):
@@ -82,6 +67,8 @@ class ExamRecordSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data['question']['options'] = shuffled_options(instance.question, instance.option_order)
+        # 标签按试卷所有者过滤，管理员查看员工试卷时也与员工所见一致
+        data['question']['tags'] = visible_tags(instance.question.tags.all(), instance.paper.user)
         return data
 
 
@@ -101,6 +88,8 @@ class ExamRecordWithAnswerSerializer(serializers.ModelSerializer):
         # user_answer 存的是考生当时看到的字母，所以选项和正确答案也要换成同一视角
         data['question']['options'] = shuffled_options(question, instance.option_order)
         data['question']['correct_answer'] = display_correct_answer(question, instance.option_order)
+        # 标签按试卷所有者过滤，管理员查看员工试卷时也与员工所见一致
+        data['question']['tags'] = visible_tags(question.tags.all(), instance.paper.user)
         return data
 
 
@@ -142,26 +131,13 @@ class ExamPaperDetailSerializer(serializers.ModelSerializer):
     def get_questions(self, obj):
         """获取试卷题目数据"""
         questions_data = []
-        # 获取试卷用户的职位信息
-        user_position = obj.user.position
-        is_admin = user_position == '系统管理员'
+        # 试卷所有者：线路、岗位级别、职位类标签只保留与其本人相同的
+        exam_user = obj.user
 
         for record in obj.exam_records.select_related('question').prefetch_related('question__tags').all():
             question = record.question
 
-            # 过滤标签：对于非管理员，只显示相关的role标签
-            filtered_tags = []
-            for tag in question.tags.all():
-                if tag.category != 'role':
-                    # 非role标签直接显示
-                    filtered_tags.append({'id': tag.id, 'name': tag.name})
-                elif is_admin:
-                    # 管理员可以看到所有role标签
-                    filtered_tags.append({'id': tag.id, 'name': tag.name})
-                else:
-                    # 非管理员用户，只显示与自己职位相关的role标签
-                    if tag.name == user_position:
-                        filtered_tags.append({'id': tag.id, 'name': tag.name})
+            filtered_tags = visible_tags(question.tags.all(), exam_user)
 
             questions_data.append({
                 'id': question.id,

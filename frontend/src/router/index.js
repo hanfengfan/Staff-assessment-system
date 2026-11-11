@@ -6,6 +6,7 @@ const Login = () => import('@/views/Login.vue')
 const Dashboard = () => import('@/views/Dashboard.vue')
 const AdminDashboard = () => import('@/views/AdminDashboard.vue')
 const StaffManagement = () => import('@/views/StaffManagement.vue')
+const ExamConfig = () => import('@/views/ExamConfig.vue')
 const ExamTaking = () => import('@/views/ExamTaking.vue')
 const ExamResult = () => import('@/views/ExamResult.vue')
 
@@ -53,6 +54,16 @@ const routes = [
     component: AdminDashboard,
     meta: {
       title: '管理员控制台',
+      requiresAuth: true,
+      requiresAdmin: true
+    }
+  },
+  {
+    path: '/admin/exam-config',
+    name: 'ExamConfig',
+    component: ExamConfig,
+    meta: {
+      title: '组卷规则',
       requiresAuth: true,
       requiresAdmin: true
     }

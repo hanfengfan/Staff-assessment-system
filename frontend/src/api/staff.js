@@ -17,6 +17,16 @@ export function deleteStaff(id) {
   return request({ url: `/staff/${id}/`, method: 'delete' })
 }
 
+// 可选的所属线路（题库“适用线路”标签）
+export function getStaffLines() {
+  return request({ url: '/staff/lines/', method: 'get' })
+}
+
+// 可选的岗位级别（题库“适用等级”标签）
+export function getStaffGrades() {
+  return request({ url: '/staff/grades/', method: 'get' })
+}
+
 // 岗位/车站/站区各维度的可选值及人数
 export function getStaffDimensions() {
   return request({ url: '/staff/dimensions/', method: 'get' })

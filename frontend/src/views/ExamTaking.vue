@@ -330,7 +330,7 @@ const initExam = async () => {
     ElMessage.success('考试已开始，请认真答题')
   } catch (error) {
     console.error('初始化考试失败:', error)
-    ElMessage.error('初始化考试失败，请稍后重试')
+    ElMessage.error(error.response?.data?.error || '初始化考试失败，请稍后重试')
     router.push('/')
   } finally {
     loading.value = false

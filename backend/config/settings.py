@@ -179,15 +179,7 @@ ASSESSMENT_SETTINGS = {
     # 能力画像更新权重配置
     'CAPABILITY_UPDATE_WEIGHT_OLD': 0.7,
     'CAPABILITY_UPDATE_WEIGHT_NEW': 0.3,
-    # 考试题目数量配置
-    'DEFAULT_EXAM_QUESTION_COUNT': 10,
-    # 智能组卷策略比例
-    'WEAK_TAG_RATIO': 0.5,    # 弱项强化
-    'NEW_QUESTION_RATIO': 0.5, # 新题探索
-    # 能力阈值
-    'WEAK_CAPABILITY_THRESHOLD': 60,
-    # 排除时间（小时）
-    'EXCLUDE_RECENT_HOURS': 1,
+    # 组卷规则（题库专业、题数、题型、难度、目录权重）由管理员在控制台设定，保存在 ExamConfig 表
 }
 
 # AI 评分配置

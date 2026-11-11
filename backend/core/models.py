@@ -211,3 +211,41 @@ class ExamRecord(BaseTimestampedModel):
 
     def __str__(self):
         return f"{self.paper.user.job_number} - 题目{self.question.id} - ({'正确' if self.is_correct else '错误'})"
+
+
+class ExamConfig(models.Model):
+    """组卷规则。全局只有一条（pk=1），由管理员在控制台设定。"""
+    bank_subjects = models.JSONField(
+        default=list, verbose_name='题库专业',
+        help_text='可多选，如 ["消防专业", "票务专业"]'
+    )
+    category_weights = models.JSONField(
+        default=dict, blank=True, verbose_name='一级目录权重',
+        help_text='如 {"消防设备": 3, "微消站": 1}；为空表示不设权重，纯随机'
+    )
+    total_count = models.PositiveSmallIntegerField(default=10, verbose_name='总题数')
+    type_counts = models.JSONField(
+        default=dict, verbose_name='各题型数量',
+        help_text='键：single / multiple / true_false / subjective'
+    )
+    difficulty_ratio = models.JSONField(
+        default=dict, verbose_name='难度分层比例', help_text='键：易 / 中 / 难'
+    )
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+    updated_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='+', verbose_name='最后修改人'
+    )
+
+    class Meta:
+        verbose_name = '组卷规则'
+        verbose_name_plural = '组卷规则'
+        db_table = 'exam_configs'
+
+    def __str__(self):
+        return f"组卷规则（{'、'.join(self.bank_subjects)}，共{self.total_count}题）"
+
+    @classmethod
+    def load(cls):
+        """取当前生效的规则；管理员还没设置过时返回 None。"""
+        return cls.objects.filter(pk=1).first()

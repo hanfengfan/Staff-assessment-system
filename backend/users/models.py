@@ -43,6 +43,14 @@ class User(AbstractUser):
     name = models.CharField(max_length=50, blank=True, default='', verbose_name='姓名')
     job_number = models.CharField(max_length=20, unique=True, verbose_name='工号', help_text='登录凭证')
     position = models.CharField(max_length=50, verbose_name='岗位', help_text='如：值班站长、站务员')
+    grade = models.CharField(
+        max_length=50, blank=True, default='', verbose_name='岗位级别',
+        help_text='与题目的"适用等级"标签同名，如：站务员初级、值班员高级。组卷时按它筛选题目'
+    )
+    line = models.CharField(
+        max_length=50, blank=True, default='', verbose_name='所属线路',
+        help_text='与题目的"适用线路"标签同名，如：3号线、11号线。组卷时先按线路、再按岗位级别筛选题目'
+    )
     station = models.CharField(max_length=100, blank=True, default='', verbose_name='所属车站')
     zone = models.CharField(max_length=100, blank=True, default='', verbose_name='所属站区')
     extra = models.JSONField(default=dict, blank=True, verbose_name='扩展信息',

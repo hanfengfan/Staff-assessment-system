@@ -49,7 +49,9 @@ request.interceptors.response.use(
       case 400:
         // 对于登录接口，不显示通用错误，让业务逻辑处理
         // 其他接口可以显示通用错误
-        if (!error.config.url.includes('/auth/login/') && !error.config.url.includes('/staff/')) {
+        const url = error.config.url
+        if (!url.includes('/auth/login/') && !url.includes('/staff/')
+            && !url.includes('/exam/generate/') && !url.includes('/exam-config/')) {
           ElMessage.error('请求参数错误')
         }
         break

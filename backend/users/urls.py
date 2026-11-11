@@ -13,5 +13,7 @@ urlpatterns = [
     path('auth/logout/', views.logout_view, name='logout'),
     path('auth/profile/', views.user_profile_view, name='profile'),
     path('staff/dimensions/', views.staff_dimensions, name='staff-dimensions'),
+    path('staff/grades/', views.staff_grades, name='staff-grades'),
+    path('staff/lines/', views.staff_lines, name='staff-lines'),
     path('', include(router.urls)),
 ]

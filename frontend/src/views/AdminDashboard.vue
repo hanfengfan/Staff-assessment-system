@@ -10,6 +10,7 @@
               返回主控制台
             </el-button>
             <el-button @click="router.push('/admin/staff')">人员管理</el-button>
+            <el-button @click="router.push('/admin/exam-config')">组卷规则</el-button>
             <el-button type="primary" @click="refreshData">
               <el-icon><Refresh /></el-icon>
               刷新数据

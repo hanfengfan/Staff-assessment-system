@@ -8,7 +8,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('id', 'job_number', 'name', 'position', 'station', 'zone',
+        fields = ('id', 'job_number', 'name', 'position', 'grade', 'line', 'station', 'zone',
                  'is_staff', 'date_joined', 'last_login')
         read_only_fields = fields
 
@@ -47,7 +47,7 @@ class StaffSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('id', 'name', 'job_number', 'position', 'station', 'zone',
+        fields = ('id', 'name', 'job_number', 'position', 'grade', 'line', 'station', 'zone',
                   'extra', 'is_active', 'password', 'date_joined', 'last_login')
         read_only_fields = ('id', 'date_joined', 'last_login')
 

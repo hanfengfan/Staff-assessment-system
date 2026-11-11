@@ -16,4 +16,8 @@ urlpatterns = [
     path('exam/<int:paper_id>/submit/', views.submit_exam, name='exam-submit'),
     path('exam/<int:paper_id>/delete/', views.delete_exam, name='exam-delete'),
     path('exam/stats/', views.exam_stats, name='exam-stats'),
+
+    # 组卷规则（管理员）
+    path('exam-config/', views.exam_config, name='exam-config'),
+    path('exam-config/options/', views.exam_config_options, name='exam-config-options'),
 ]

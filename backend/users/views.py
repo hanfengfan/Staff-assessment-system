@@ -84,6 +84,24 @@ class StaffViewSet(viewsets.ModelViewSet):
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAdminUser])
+def staff_grades(request):
+    """可选的岗位级别：题库里“适用等级”标签的名称。"""
+    from core.models import Tag
+    names = Tag.objects.filter(category=Tag.Category.GRADE).values_list('name', flat=True)
+    return Response(sorted(names))
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAdminUser])
+def staff_lines(request):
+    """可选的所属线路：题库里“适用线路”标签的名称。"""
+    from core.models import Tag
+    names = Tag.objects.filter(category=Tag.Category.LINE).values_list('name', flat=True)
+    return Response(sorted(names))
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAdminUser])
 def staff_dimensions(request):
     """岗位/车站/站区各维度的可选值及人数，供筛选与后续统计分析使用。"""
     return Response(dimension_options())

@@ -44,6 +44,8 @@
         <el-table-column prop="job_number" label="工号" width="120" />
         <el-table-column prop="name" label="姓名" width="120" />
         <el-table-column prop="position" label="岗位" min-width="120" />
+        <el-table-column prop="line" label="所属线路" min-width="100" />
+        <el-table-column prop="grade" label="岗位级别" min-width="110" />
         <el-table-column prop="station" label="所属车站" min-width="120" />
         <el-table-column prop="zone" label="所属站区" min-width="120" />
         <el-table-column label="状态" width="90">
@@ -95,6 +97,16 @@
             <el-option v-for="opt in dim.options" :key="opt.value" :label="opt.value" :value="opt.value" />
           </el-select>
         </el-form-item>
+        <el-form-item label="所属线路" prop="line">
+          <el-select v-model="form.line" clearable placeholder="优先决定员工能抽到哪些题" style="width: 100%">
+            <el-option v-for="l in lines" :key="l" :label="l" :value="l" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="岗位级别" prop="grade">
+          <el-select v-model="form.grade" clearable placeholder="在所属线路的题目中再按级别筛选" style="width: 100%">
+            <el-option v-for="g in grades" :key="g" :label="g" :value="g" />
+          </el-select>
+        </el-form-item>
         <el-form-item :label="editingId ? '重置密码' : '初始密码'" prop="password">
           <el-input
             v-model="form.password"
@@ -118,7 +130,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
-import { getStaffList, createStaff, updateStaff, deleteStaff, getStaffDimensions } from '@/api/staff'
+import { getStaffList, createStaff, updateStaff, deleteStaff, getStaffDimensions, getStaffGrades, getStaffLines } from '@/api/staff'
 
 const router = useRouter()
 
@@ -133,6 +145,8 @@ const loading = ref(false)
 const saving = ref(false)
 const list = ref([])
 const dimensionData = ref([])
+const grades = ref([])
+const lines = ref([])
 const pagination = reactive({ page: 1, size: 20, total: 0 })
 const filter = reactive({ search: '', position: '', station: '', zone: '', is_active: '' })
 
@@ -184,7 +198,7 @@ const resetFilter = () => {
 const dialogVisible = ref(false)
 const editingId = ref(null)
 const formRef = ref()
-const emptyForm = () => ({ name: '', job_number: '', position: '', station: '', zone: '', password: '' })
+const emptyForm = () => ({ name: '', job_number: '', position: '', grade: '', line: '', station: '', zone: '', password: '' })
 const form = reactive(emptyForm())
 
 const rules = {
@@ -220,6 +234,8 @@ const openEdit = (row) => {
     name: row.name,
     job_number: row.job_number,
     position: row.position,
+    grade: row.grade,
+    line: row.line,
     station: row.station,
     zone: row.zone
   })
@@ -291,6 +307,8 @@ const remove = async (row) => {
 onMounted(() => {
   fetchDimensions()
   fetchList()
+  getStaffGrades().then(res => (grades.value = res)).catch(() => {})
+  getStaffLines().then(res => (lines.value = res)).catch(() => {})
 })
 </script>
 

@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 from datetime import timedelta
 
-from .models import Question, Tag, ExamPaper, ExamRecord
+from .models import Question, Tag, ExamPaper, ExamRecord, ExamConfig
 from .serializers import (
     QuestionSerializer, QuestionDetailSerializer,
     ExamPaperListSerializer, ExamPaperDetailSerializer, ExamPaperResultSerializer,
@@ -16,6 +16,8 @@ from .serializers import (
 )
 from .services import ExamGenerationService, ExamScoringService
 from .option_shuffle import shuffled_options
+from .tag_filter import visible_tags
+from .exam_builder import ComposeError
 
 
 class StandardResultsSetPagination(PageNumberPagination):
@@ -132,6 +134,8 @@ def generate_exam(request):
             'status': exam_paper.get_status_display()
         }, status=status.HTTP_201_CREATED)
 
+    except ComposeError as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         return Response({
             'error': f'生成试卷失败: {str(e)}'
@@ -163,27 +167,14 @@ def start_exam(request, paper_id):
 
         print(f"实际获取的答题记录数量: {exam_records.count()}")
 
-        # 获取试卷用户的职位信息，用于过滤role标签
-        user_position = exam_paper.user.position
-        is_admin = user_position == '系统管理员'
+        # 试卷所有者：线路、岗位级别、职位类标签只保留与其本人相同的
+        exam_user = exam_paper.user
 
         for record in exam_records:
             question = record.question
             print(f"处理题目: {question.id}, 类型: {question.question_type}")
 
-            # 过滤标签：对于非管理员，只显示相关的role标签
-            filtered_tags = []
-            for tag in question.tags.all():
-                if tag.category != 'role':
-                    # 非role标签直接显示
-                    filtered_tags.append({'id': tag.id, 'name': tag.name})
-                elif is_admin:
-                    # 管理员可以看到所有role标签
-                    filtered_tags.append({'id': tag.id, 'name': tag.name})
-                else:
-                    # 非管理员用户，只显示与自己职位相关的role标签
-                    if tag.name == user_position:
-                        filtered_tags.append({'id': tag.id, 'name': tag.name})
+            filtered_tags = visible_tags(question.tags.all(), exam_user)
 
             questions_data.append({
                 'id': question.id,  # 使用id而不是question_id以保持一致性
@@ -316,3 +307,108 @@ def exam_stats(request):
     }
 
     return Response(stats_data, status=status.HTTP_200_OK)
+
+
+def _config_payload(config):
+    if config is None:
+        return {'configured': False, 'bank_subjects': [], 'category_weights': {},
+                'total_count': 10, 'type_counts': {}, 'difficulty_ratio': {}}
+    return {
+        'configured': True,
+        'bank_subjects': config.bank_subjects,
+        'category_weights': config.category_weights,
+        'total_count': config.total_count,
+        'type_counts': config.type_counts,
+        'difficulty_ratio': config.difficulty_ratio,
+        'updated_at': config.updated_at,
+    }
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAdminUser])
+def exam_config_options(request):
+    """组卷规则的可选项：各题库专业下的一级目录，以及各题型、难度的题量（仅启用的题）。"""
+    rows = (Question.objects.filter(is_active=True).exclude(bank_subject='')
+            .values('bank_subject', 'category_l1', 'question_type', 'difficulty')
+            .annotate(n=Count('id')))
+    subjects = {}
+    for r in rows:
+        s = subjects.setdefault(r['bank_subject'], {
+            'name': r['bank_subject'], 'total': 0, 'categories': {}, 'types': {}, 'levels': {}})
+        s['total'] += r['n']
+        s['categories'][r['category_l1']] = s['categories'].get(r['category_l1'], 0) + r['n']
+        s['types'][r['question_type']] = s['types'].get(r['question_type'], 0) + r['n']
+        s['levels'][r['difficulty']] = s['levels'].get(r['difficulty'], 0) + r['n']
+    for s in subjects.values():
+        s['categories'] = [{'name': k, 'count': v} for k, v in sorted(s['categories'].items())]
+    return Response(sorted(subjects.values(), key=lambda s: s['name']))
+
+
+def _validate_config(data):
+    """校验管理员提交的规则，返回 (清洗后的数据, 错误信息)。"""
+    known = set(Question.objects.filter(is_active=True).exclude(bank_subject='')
+                .values_list('bank_subject', flat=True))
+    subjects = data.get('bank_subjects') or []
+    if not isinstance(subjects, list) or not subjects:
+        return None, '请至少选择一个题库专业'
+    if any(s not in known for s in subjects):
+        return None, '所选题库专业不存在或没有启用的题目'
+
+    type_counts = {}
+    for t in ('single', 'multiple', 'true_false', 'subjective'):
+        try:
+            n = int((data.get('type_counts') or {}).get(t, 0) or 0)
+        except (TypeError, ValueError):
+            return None, '题型数量必须是整数'
+        if n < 0:
+            return None, '题型数量不能为负数'
+        if n:
+            type_counts[t] = n
+    total = sum(type_counts.values())
+    if total == 0:
+        return None, '请至少为一种题型设置数量'
+    if int(data.get('total_count') or 0) != total:
+        return None, f'总题数必须等于各题型数量之和（当前各题型合计 {total} 题）'
+
+    ratio = {}
+    for lv in ('易', '中', '难'):
+        try:
+            v = float((data.get('difficulty_ratio') or {}).get(lv, 0) or 0)
+        except (TypeError, ValueError):
+            return None, '难度比例必须是数字'
+        if v < 0:
+            return None, '难度比例不能为负数'
+        ratio[lv] = v
+    if sum(ratio.values()) <= 0:
+        return None, '难度比例至少有一项大于 0'
+
+    cats = set(Question.objects.filter(is_active=True, bank_subject__in=subjects)
+               .values_list('category_l1', flat=True))
+    weights = {}
+    for name, w in (data.get('category_weights') or {}).items():
+        try:
+            w = float(w or 0)
+        except (TypeError, ValueError):
+            return None, f'目录“{name}”的权重必须是数字'
+        if w < 0:
+            return None, f'目录“{name}”的权重不能为负数'
+        if w > 0:
+            if name not in cats:
+                return None, f'一级目录“{name}”不在所选题库专业中'
+            weights[name] = w
+    return {'bank_subjects': subjects, 'category_weights': weights, 'total_count': total,
+            'type_counts': type_counts, 'difficulty_ratio': ratio}, None
+
+
+@api_view(['GET', 'PUT'])
+@permission_classes([permissions.IsAdminUser])
+def exam_config(request):
+    """读取 / 保存全局组卷规则（仅管理员）。"""
+    if request.method == 'GET':
+        return Response(_config_payload(ExamConfig.load()))
+    cleaned, error = _validate_config(request.data)
+    if error:
+        return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
+    config, _ = ExamConfig.objects.update_or_create(
+        pk=1, defaults={**cleaned, 'updated_by': request.user})
+    return Response(_config_payload(config))
